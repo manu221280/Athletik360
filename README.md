@@ -1,2 +1,2 @@
-# athletik-2027
+# athletik360
 Meine persönliche Trainings-App für Krafttraining, Ausdauer, Athletik und Leistungsentwicklung.
