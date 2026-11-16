@@ -28,71 +28,375 @@
 .warmup-box .row input[type=checkbox]{width:20px}
 .training-status{border-radius:9px;padding:7px 9px;background:#18332b;font-size:12px;color:var(--accent)}
 @media(min-width:650px){.setline{grid-template-columns:repeat(3,1fr)}}
-</style></head><body><main><header><div><small>DEIN TRAINING • DEINE DATEN</small><h1>Athletik <span style="color:var(--accent)">360</span></h1></div><span class="pill">Offline-fähig</span></header><section id="home"><div class="hero"><small>DEIN FOKUS</small><h2 style="margin:8px 0">Stark. Ausdauernd. Vielseitig.</h2><div class="muted">3 × Kraft · 2 × Cardio · langfristig belastbar</div></div><div class="card" id="resumeCard" hidden><div class="row space"><div><strong>Laufendes Training</strong><p class="hint" id="resumeSummary">Zwischengespeicherter Entwurf</p></div><button class="primary" onclick="show('train')">Fortsetzen</button></div></div><div class="grid"><div class="card"><div class="muted">Einheiten gesamt</div><div class="stat" id="count">0</div></div><div class="card"><div class="muted">Letzte 7 Tage</div><div class="stat" id="week">0</div></div></div><div class="card"><h2>Deine Trainingswoche</h2><div id="weekplan"></div></div><div class="card"><h2>Schnellstart</h2><div class="grid"><button class="primary" onclick="startTemplate('Oberkörper')">Oberkörper</button><button class="primary" onclick="startTemplate('Unterkörper')">Unterkörper</button><button class="primary" onclick="startTemplate('Ganzkörper')">Ganzkörper</button><button onclick="startCardio()">+ Cardio</button></div></div><div class="card"><div class="row space"><h2>Zuletzt protokolliert</h2><button onclick="show('analysis')">Diagramme ansehen</button></div><div id="recent"></div></div></section>
-<section id="train" hidden><div class="card"><div class="row space"><h2 id="formTitle">Training erfassen</h2><button onclick="newTraining()">Neu</button></div><div class="grid"><div><label>Datum</label><input type="date" id="date"></div><div><label>Trainingstyp</label><select id="type" onchange="renderType()"><option value="kraft">Krafttraining</option><option value="cardio">Cardio / Ausdauer</option><option value="sonstiges">Athletik / Sonstiges</option></select></div></div><label>Name der Einheit</label><input id="title" placeholder="z. B. Oberkörper"><div class="grid"><div><label>Dauer (Minuten)</label><input id="duration" type="number" min="0" placeholder="65"></div><div><label>Session-RPE (0–10)</label><input id="srpe" type="number" min="0" max="10" step="0.5" placeholder="6"></div></div><div id="strengthFields">
-<div id="draftStatus" class="training-status" aria-live="polite" style="margin-top:12px">Noch kein Entwurf gespeichert.</div>
-<div class="card warmup-box" style="margin:13px 0"><div class="row space"><strong>Aufwärmen</strong><label style="margin:0;display:flex;gap:7px;align-items:center"><input type="checkbox" id="warmupEnabled" checked onchange="updateWarmup()" style="width:18px"> Aktiv</label></div>
-<div id="warmupDetail"><div class="grid"><div><label>Allgemein (Min.)</label><input type="number" id="warmupMinutes" min="0" max="60" value="5" onchange="updateWarmup()"></div><div><label>Aufwärmsätze / Notiz</label><input id="warmupNotes" placeholder="z. B. 2–3 Ramp-up-Sätze" oninput="updateWarmup()"></div></div><label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="warmupDone" onchange="updateWarmup()" style="width:18px"> Warm-up abgeschlossen</label><p class="hint">Aufwärmsätze gehören nicht zum regulären Arbeitsvolumen.</p></div></div>
-<div id="restPanel" class="rest-panel"><div class="row space"><strong>⏱ Satzpause</strong><span id="restState" class="hint">Bereit</span></div><div class="rest-count" id="restCount" aria-live="off">02:00</div><div class="rest-row"><label>Pause (Sekunden)<input type="number" id="restSeconds" min="15" max="900" step="15" value="120" onchange="changeRestLength(this.value)"></label><button onclick="changeRestLength(60)">60 s</button><button onclick="changeRestLength(90)">90 s</button><button onclick="changeRestLength(180)">180 s</button></div><div class="rest-controls" style="margin-top:10px"><button class="primary" onclick="restStart()">Start / Neu</button><button onclick="restToggle()" id="restToggleBtn">Pause</button><button onclick="restStop()">Stopp</button></div><p class="hint">Startet automatisch, sobald du einen Satz mit „Satz abschließen“ bestätigst. Läuft auch weiter, wenn du Analyse oder Verlauf öffnest – solange die App nicht geschlossen wird.</p></div>
+
+/* V2 test: compact live controls (edit controls remain accessible). */
+.live-clock{display:flex;align-items:center;justify-content:space-between;gap:9px;background:#17352d;border:1px solid #416a57;border-radius:14px;padding:12px;margin:10px 0}
+.live-clock strong{font-size:23px;font-variant-numeric:tabular-nums;color:var(--accent)}
+.live-actions{display:flex;gap:7px;flex-wrap:wrap}
+.live-actions button{padding:8px 10px;font-size:12px}
+.set-state{margin-top:9px}.setline{margin:5px 0 8px}.setline label{margin:3px 0}.workout-card .advanced-controls{border-top:1px solid var(--line);margin:13px 0;padding-top:8px}
+.workout-card .advanced-controls summary{cursor:pointer;color:var(--mute);padding:10px 0;font-size:13px}
+.workout-card .set-state button{min-height:44px}
+.setlast{font-size:12px;color:var(--accent);margin:8px 0}
+@media(max-width:500px){.rest-panel{position:static}.live-clock{align-items:flex-start}.live-clock strong{font-size:20px}}
+
+/* Phase 2 Abschluss: laufendes Training zuerst, Verwaltung erst bei Bedarf. */
+#train > .card{display:flex;flex-direction:column;gap:0}
+#train > .card > .row:first-child{order:0;margin-bottom:4px}
+#restoreDiscarded{order:0}
+#strengthFields{order:1;display:flex;flex-direction:column}
+#cardioFields{order:1}
+#sessionDetails{order:2}
+#train > .card > label:has(+ #notes),#train > .card > textarea#notes{order:3}
+#train > .card > .row:last-child{order:4}
+#liveClockPanel{order:0;margin:6px 0;padding:9px 12px}
+#restPanel{order:1;margin:8px 0 5px;position:static;padding:10px 12px;box-shadow:none}
+#strengthFields > .row{order:2;margin:6px 0 0!important}
+#exerciseNavigator{order:3}
+#exercises{order:4}
+#strengthFields > .warmup-fold{order:5}
+#draftStatus{order:6;margin:8px 0!important}
+.rest-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:4px}
+.rest-count{font-size:26px;margin:0;text-align:left}
+.rest-quick{padding:7px 13px;min-height:40px}
+.rest-more{margin-top:4px}
+.rest-more summary,.session-details summary,.warmup-fold summary{cursor:pointer;color:var(--accent);font-size:13px;padding:11px 2px}
+.rest-more[open]{border-top:1px solid var(--line);margin-top:10px}
+.rest-more .rest-row{margin-top:8px}
+.session-details{background:#10251e;border:1px solid var(--line);border-radius:12px;margin:12px 0 6px;padding:0 12px}
+.session-fields{padding:0 0 12px}
+.warmup-fold{background:#10251e;border:1px solid var(--line);border-radius:12px;margin:10px 0 0;padding:0 12px}
+.warmup-inner{padding-bottom:10px}
+#exerciseNavigator label{margin-top:5px}
+#exerciseNavigator .exercise-toolbar{margin:6px 0}
+#exerciseNavigator .workout-progress{height:5px;margin:5px 0}
+#exerciseNavigator select{padding:9px}
+#exercises .workout-card{margin-top:6px;padding:12px}
+#strengthFields > .row h3{margin:6px 0}
+@media(max-width:500px){#train .card{padding:12px}#train #exercises .workout-card{padding:12px}.live-clock{align-items:center}}
+
+#train #strengthFields[hidden],#train #cardioFields[hidden],#liveClockPanel[hidden]{display:none!important}
+
+/* Phase 2: nur ein Satzeditor, alle Sätze jederzeit wählbar. */
+.set-picker{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0 12px}
+.set-choice{flex:1 1 98px;min-width:95px;max-width:180px;display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;font-weight:700;border:1px solid var(--line);background:transparent;padding:9px 10px;border-radius:11px}
+.set-choice span{font-size:11px;font-weight:400;opacity:.8}
+.set-choice.chosen{border:2px solid var(--accent);background:rgba(139,220,150,.1)}
+.set-choice.completed:not(.chosen){opacity:.78}
+.current-set-editor{border-top:1px solid var(--line);padding-top:10px}
+.set-actions{margin-top:7px;gap:12px}
+@media(max-width:500px){.set-choice{flex:1 1 78px;min-width:74px;padding:8px}.set-choice span{font-size:10px}}
+
+/* Phase 3.1: Regelbasierte, bewusst konservative Progressionshinweise. */
+.progress-panel{border:1px solid #456b5b;border-radius:12px;padding:12px;margin:12px 0;background:#173028}
+.progress-panel strong{color:var(--accent)}
+.progress-panel p{margin:6px 0;font-size:13px;line-height:1.5}
+.progress-panel details{margin-top:6px}
+.progress-panel summary{cursor:pointer;font-size:12px;color:var(--mute)}
+.progress-panel .sub{font-size:12px}
+
+/* Phase 3.2 – kompakte, gut lesbare Belastungsübersicht */
+.load-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:12px 0 16px}
+.load-kpi{background:#19382e;border:1px solid var(--line);border-radius:12px;padding:12px 10px;min-width:0}
+.load-kpi b{display:block;font-size:20px;color:var(--accent);margin:4px 0}
+.load-kpi span{display:block;color:var(--muted);font-size:12px}
+.load-scroll{overflow-x:auto}
+.load-table{width:100%;border-collapse:collapse;text-align:right;font-size:13px;white-space:nowrap}
+.load-table th,.load-table td{padding:10px 8px;border-bottom:1px solid var(--line)}
+.load-table th:first-child,.load-table td:first-child{text-align:left}
+.load-table tbody tr:last-child{background:rgba(138,206,151,.08)}
+.load-explain{margin-top:12px}.load-explain summary{color:var(--accent);cursor:pointer;padding:8px 0}
+@media(max-width:550px){.load-kpis{grid-template-columns:1fr 1fr}.load-kpi b{font-size:17px}}
+
+/* Phase 3.3 – Deload-Vorschau, manuell konfiguriert */
+.deload-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.deload-grid label{font-size:12px;color:var(--muted)}
+.deload-grid input,.deload-grid select{margin-top:6px}
+.deload-banner{border:1px solid #537864;background:#19382e;border-radius:12px;padding:13px;margin:12px 0;line-height:1.5}
+.deload-banner strong{color:var(--accent)}
+.deload-weeks{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:12px 0}
+.deload-week{padding:10px 4px;text-align:center;border:1px solid var(--line);border-radius:10px;font-size:12px;background:#172b25}
+.deload-week.is-deload{border-color:var(--accent);background:#244636}
+.deload-week.current{outline:2px solid #c1dab4;outline-offset:1px}
+.deload-note{font-size:12px;color:var(--muted);line-height:1.5}
+@media(max-width:550px){.deload-weeks{gap:4px}.deload-week{font-size:10px;padding:9px 2px}}
+
+/* Phase 3.4: Moderner Trainingsabschluss, kein störendes Formular während der Sätze. */
+.finish-launch{margin:18px 0 8px;display:flex;gap:10px;flex-wrap:wrap}
+.finish-launch .primary{flex:1;min-height:48px;font-weight:700}
+.finish-dialog{border:1px solid #467763;border-radius:20px;background:#10241e;color:#e8f1ec;box-shadow:0 20px 80px #0009;width:min(560px,calc(100% - 22px));max-height:90vh;overflow-y:auto;padding:0}
+.finish-dialog::backdrop{background:rgba(0,0,0,.74);backdrop-filter:blur(4px)}
+.finish-head{position:sticky;top:0;background:#10241e;border-bottom:1px solid #315145;padding:20px;z-index:1;display:flex;justify-content:space-between;align-items:start;gap:12px}
+.finish-head h2{margin:4px 0 0}.finish-body{padding:18px 20px 22px}.finish-section{padding:15px;border:1px solid #325344;background:#173229;border-radius:14px;margin:0 0 13px}
+.finish-section h3{margin:0 0 6px}.finish-section p{font-size:12px;line-height:1.55;color:#a7c7b9;margin:0 0 12px}
+.finish-choice-row{display:flex;gap:7px;flex-wrap:wrap}.finish-choice{border-radius:10px;padding:11px 13px;min-width:45px;cursor:pointer;border:1px solid #416554;background:#213b32;color:#eaf4ee}
+.finish-choice.selected{background:#9fe1ad;color:#092b1e;border-color:#c6f1ce;font-weight:800}
+.finish-quality{border:1px solid #926b3d;background:#352a1d;padding:13px;border-radius:12px;margin-bottom:14px;font-size:13px;line-height:1.5}
+.finish-quality ul{padding-left:20px;margin:8px 0}.finish-quality.good{border-color:#3b7857;background:#16382a}
+.finish-actions{display:flex;gap:8px;margin-top:12px}.finish-actions button{flex:1;min-height:46px}
+.finish-small{font-size:12px;color:#aec9bd;line-height:1.5}.finish-summary{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.finish-summary span{padding:8px 11px;border-radius:10px;background:#213b32;font-size:12px}
+@media(max-width:450px){.finish-head{padding:15px}.finish-body{padding:13px}.finish-section{padding:12px}.finish-choice{padding:9px;min-width:40px}}
+
+/* Phase 3.4 – kompaktes Tagebuch mit editierbaren Details */
+.history{padding:16px 0}.history-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.history-title{font-size:16px;font-weight:750}.history-date{font-size:12px;color:var(--mute);white-space:nowrap}.history-chips{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.history-chip{display:inline-flex;background:#203d33;border:1px solid #355a4c;color:#d5f5de;border-radius:999px;font-size:12px;padding:5px 9px}.history-chip.neutral{background:#1c302c;color:#b9ccc1}.history-chip.warn{background:#3d3022;color:#ffd8a4;border-color:#6a4f2f}.history-more{border:1px solid var(--line);border-radius:12px;margin:12px 0 0;background:#10201b;overflow:hidden}.history-more>summary{list-style:none;cursor:pointer;padding:12px;color:var(--accent);font-size:13px;font-weight:700}.history-more>summary::-webkit-details-marker{display:none}.history-more>summary:after{content:' ▾';float:right}.history-more[open]>summary:after{content:' ▴'}.history-inner{padding:0 12px 12px}.history-exercise{padding:9px 0;border-top:1px solid var(--line)}.history-exercise strong{font-size:13px}.history-set{font-size:12px;margin:4px 0;color:var(--mute)}.history-set.done{color:#d7f2dc}.history-set.pending{color:#e4bc89}.history-empty{font-size:12px;color:var(--mute)}.history-actions{margin-top:10px}.history-note{white-space:pre-wrap;overflow-wrap:anywhere}
+
+/* Gesamttest: kompaktes Vor-dem-Training-Check-in */
+.readiness-card{border-color:#3d6c57}.readiness-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.readiness-fields label{font-size:12px}.readiness-fields select{font-size:13px;margin-top:6px}.readiness-advice{background:#1c382d;border:1px solid #416452;border-radius:12px;margin-top:13px;padding:12px;font-size:13px;line-height:1.55}.readiness-advice.caution{background:#42331e;border-color:#947143}.readiness-advice strong{display:block;margin-bottom:3px}.readiness-dots{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.readiness-dots span{border:1px solid #456452;border-radius:999px;padding:6px 9px;font-size:12px}.readiness-trend{margin-top:12px}.readiness-trend article{padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}.readiness-trend article:last-child{border-bottom:0}
+@media(max-width:580px){.readiness-fields{grid-template-columns:1fr}.readiness-card .row{flex-wrap:wrap}}
+
+/* Abschluss Mobil-Fokus: ein einziger Abschlussbutton, versteckte Notizen, schnelle Navigation. */
+#train.focus-mode .finish-launch{display:none!important}
+#train.focus-mode #workoutNotes{order:4;margin-top:10px}
+#train.focus-mode .next-exercise-footer{margin-top:12px;margin-bottom:8px}
+#train.focus-mode .next-exercise-footer button{min-height:48px;font-weight:750}
+#train.focus-mode #workoutNotes summary{font-size:13px}
+/* Mobil-Fokus: geführter Einstieg und störungsfreier Satzmodus */
+#home{display:flex;flex-direction:column}#home[hidden]{display:none}
+#home>.hero{order:-6;margin-bottom:10px;padding:14px 16px}
+#home>#resumeCard{order:-5}
+#home>.program-picker{order:-4}
+#home>.precheck-wrap{order:-3}
+#home>.grid{order:-2}
+#home>#weekplanCard{order:0}
+#home>.card:last-child{order:1}
+.program-picker h2{margin-bottom:8px}.program-picker .grid button{min-height:56px;font-weight:700}
+.precheck-wrap{padding:0;overflow:hidden}.precheck-wrap>summary{cursor:pointer;font-weight:700;padding:15px 17px;list-style:none}
+.precheck-wrap>summary::-webkit-details-marker{display:none}.precheck-wrap>summary:after{content:' ▾';float:right;color:var(--accent)}
+.precheck-wrap[open]>summary:after{content:' ▴'}
+.precheck-wrap>.readiness-card{border:0;margin:0;box-shadow:none;border-top:1px solid var(--line);border-radius:0}
+.program-intro{width:min(580px,calc(100% - 20px));max-height:91vh;overflow:auto;border:1px solid #4b8467;border-radius:22px;background:#10241e;color:var(--text);padding:0;box-shadow:0 24px 90px #000b}
+.program-intro::backdrop{background:#020806d9;backdrop-filter:blur(5px)}
+.program-intro .intro-head{padding:18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px}
+.program-intro .intro-head h2{margin:3px 0 0;font-size:21px}
+.program-intro .intro-body{padding:18px}.intro-lead{line-height:1.5;color:var(--mute);font-size:13px}
+.intro-advice{padding:14px;background:#19372b;border:1px solid #426951;border-radius:13px;margin:10px 0}
+.intro-advice strong{color:var(--accent);display:block;margin-bottom:7px}.intro-advice p{font-size:13px;line-height:1.5;margin:0}
+.intro-other{border:1px solid var(--line);border-radius:12px;margin-top:10px;overflow:hidden}
+.intro-other>summary{padding:13px;cursor:pointer;color:var(--accent);font-size:13px}
+.intro-other>div{padding:0 13px 13px}
+.intro-other article{padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.intro-footer{position:sticky;bottom:0;padding:12px 18px;background:#10241e;border-top:1px solid var(--line);display:flex;gap:9px}
+.intro-footer button.primary{flex:1}
+#train.focus-mode>.card>.row:first-child,#train.focus-mode #liveClockPanel,#train.focus-mode #draftStatus,#train.focus-mode #restPanel,#train.focus-mode #strengthFields>.row,#train.focus-mode .setlast,#train.focus-mode .progress-panel,#train.focus-mode .workout-card>.row:first-child{display:none!important}
+#train.focus-mode #trainingFocusHeader{display:flex!important}
+#trainingFocusHeader{display:none;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:#172b24;border-radius:14px;padding:10px;margin-bottom:5px}
+.focus-workout-name{font-size:13px;color:var(--mute)}.focus-clock{font-weight:750;color:var(--accent);font-variant-numeric:tabular-nums}
+.focus-actions{display:flex;align-items:center;gap:7px}.focus-actions button{padding:9px;font-size:12px}
+#train.focus-mode #strengthFields{order:1}
+#train.focus-mode #exerciseNavigator{order:0}
+#train.focus-mode #exercises{order:1}
+#train.focus-mode #workoutExtra{order:2}
+#train.focus-mode #exerciseNavigator label,#train.focus-mode .workout-progress,#train.focus-mode #exerciseNavigator>.row,#train.focus-mode .exercise-toolbar{display:none!important}
+#train.focus-mode #exerciseNavigator>select{margin:0 0 6px;font-weight:650}
+#train.focus-mode .workout-card{margin-top:0;padding:12px}
+#train.focus-mode .workout-card>p.hint:first-of-type{margin:3px 0 8px}
+#train.focus-mode .set-picker{margin-top:5px}
+#train.focus-mode #workoutExtra{margin-top:14px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+#train.focus-mode #workoutExtra>summary{cursor:pointer;padding:12px;color:var(--accent);font-size:13px}
+#train.focus-mode #workoutExtra>#restPanel{display:block!important;margin:6px}
+#train.focus-mode #workoutExtra>.row{display:flex!important;margin:8px!important}
+#train.focus-mode .workout-card>button.full{margin-top:10px}
+#train.focus-mode .workout-card>.hint:last-child{display:none}
+#train.focus-mode .workout-card .advanced-controls{margin:7px 0}
+#train.focus-mode .workout-card .advanced-controls summary{padding:5px 0}
+#train.focus-mode .set-state{margin-top:8px}
+#train.focus-mode .setline input{min-height:45px;font-size:16px}
+#train.focus-mode #sessionDetails{margin-top:12px}
+@media(max-width:480px){main{padding-top:12px}#train.focus-mode>.card{padding:10px}#train.focus-mode .workout-card{padding:10px}#trainingFocusHeader{padding:9px}.focus-actions button{font-size:12px;padding:8px}.program-picker .grid button{min-height:54px}}
+
+/* Satzpause: großer, direkt nach Satzabschluss geöffneter Dialog. */
+.rest-break-dialog{width:min(440px,calc(100% - 30px));max-height:90dvh;overflow:auto;border:1px solid #5d9877;border-radius:23px;background:#10251d;color:#e9f5eb;padding:0;box-shadow:0 22px 90px #000b}
+.rest-break-dialog::backdrop{background:rgba(0,0,0,.82);backdrop-filter:blur(4px)}
+.rest-break-content{padding:24px 20px 20px;text-align:center}
+.rest-break-caption{font-size:13px;color:#accdbb;letter-spacing:.09em;font-weight:750;text-transform:uppercase}
+.rest-break-clock{font-size:clamp(65px,18vw,102px);line-height:1.28;font-weight:850;color:var(--accent);font-variant-numeric:tabular-nums;margin:12px 0}
+.rest-break-clock.finished{color:#f4d293}
+.rest-break-status{font-size:14px;color:#b7d7c6;margin-bottom:20px}
+.rest-break-main-action{width:100%;min-height:54px;font-weight:800;font-size:16px}
+.rest-break-secondary{display:flex;gap:10px;margin-top:12px}
+.rest-break-secondary button{flex:1;min-height:46px}
+.rest-inline-indicator{position:sticky;top:4px;z-index:6;display:flex;align-items:center;justify-content:space-between;gap:8px;background:#203d30;border:1px solid #51936c;border-radius:12px;padding:8px 11px;margin:8px 0;color:#e5f5e9;box-shadow:0 4px 18px #0005}
+.rest-inline-indicator[hidden]{display:none!important}
+.rest-inline-indicator button{padding:7px 12px;font-size:13px;font-weight:700}
+.rest-inline-indicator strong{color:var(--accent);font-variant-numeric:tabular-nums}
+@media(max-width:440px){.rest-break-content{padding:18px 14px}.rest-break-secondary{gap:6px}.rest-break-secondary button{padding:10px 6px;font-size:12px}}
+</style><script src="storage-v2.js"></script></head><body><main><header><div><small>DEIN TRAINING • DEINE DATEN</small><h1>Athletik <span style="color:var(--accent)">360</span></h1></div><span class="pill">Offline-fähig</span></header><section id="home"><div class="hero"><small>DEIN FOKUS</small><h2 style="margin:8px 0">Stark. Ausdauernd. Vielseitig.</h2><div class="muted">3 × Kraft · 2 × Cardio · langfristig belastbar</div></div><details class="card precheck-wrap" id="precheckWrap"><summary>Tages-Check (optional) · Energie, Schlaf, Beschwerden</summary><div class="card readiness-card" id="precheckCard">
+ <div class="row space"><div><h2>Vor dem Training</h2><p class="hint">Kurzer Tages-Check · freiwillig · keine Diagnose</p></div><span class="pill" id="readinessDate"></span></div>
+ <div class="readiness-fields">
+ <div><label for="preEnergy">Energie (1–5)</label><select id="preEnergy"><option value="">Nicht angegeben</option><option value="1">1 · Sehr gering</option><option value="2">2 · Gering</option><option value="3">3 · Mittel</option><option value="4">4 · Gut</option><option value="5">5 · Sehr gut</option></select></div>
+ <div><label for="preSleep">Schlafqualität (1–5)</label><select id="preSleep"><option value="">Nicht angegeben</option><option value="1">1 · Sehr schlecht</option><option value="2">2 · Schlecht</option><option value="3">3 · Mittel</option><option value="4">4 · Gut</option><option value="5">5 · Sehr gut</option></select></div>
+ <div><label for="preSoreness">Muskelbeschwerden (1–5)</label><select id="preSoreness"><option value="">Nicht angegeben</option><option value="1">1 · Keine</option><option value="2">2 · Gering</option><option value="3">3 · Mittel</option><option value="4">4 · Stark</option><option value="5">5 · Sehr stark</option></select></div>
+ </div><div class="row" style="margin-top:12px"><button class="primary" onclick="savePrecheck()">Tages-Check speichern</button><button onclick="clearPrecheck()">Zurücksetzen</button></div>
+ <div id="readinessAdvice" class="readiness-advice" aria-live="polite">Noch kein Tages-Check vorhanden. Du kannst trotzdem trainieren.</div>
+ </div></details><div class="card" id="resumeCard" hidden><div class="row space"><div><strong>Laufendes Training</strong><p class="hint" id="resumeSummary">Zwischengespeicherter Entwurf</p></div><button class="primary" onclick="show('train')">Fortsetzen</button></div></div><div class="grid"><div class="card"><div class="muted">Einheiten gesamt</div><div class="stat" id="count">0</div></div><div class="card"><div class="muted">Letzte 7 Tage</div><div class="stat" id="week">0</div></div></div><div class="card" id="weekplanCard"><h2>Deine Trainingswoche</h2><div id="weekplan"></div></div><div class="card program-picker"><h2>Training auswählen</h2><div class="grid"><button class="primary" onclick="startTemplate('Oberkörper')">Oberkörper</button><button class="primary" onclick="startTemplate('Unterkörper')">Unterkörper</button><button class="primary" onclick="startTemplate('Ganzkörper')">Ganzkörper</button><button onclick="startCardio()">+ Cardio</button></div></div><div class="card"><div class="row space"><h2>Zuletzt protokolliert</h2><button onclick="show('analysis')">Diagramme ansehen</button></div><div id="recent"></div></div></section>
+<section id="train" hidden><div class="card"><div class="row space"><h2 id="formTitle">Training erfassen</h2><button onclick="newTraining()">Neu</button></div><button id="restoreDiscarded" style="display:none;margin-bottom:10px" onclick="restoreDiscardedDraft()">↶ Letzten verworfenen Entwurf wiederherstellen</button><div id="trainingFocusHeader"><div><div class="focus-workout-name" id="focusName">Krafttraining</div><div class="focus-clock"><span id="focusLiveClock">00:00</span> <span class="muted" style="font-size:12px">· Pause <span id="focusRest">02:00</span></span></div></div><div class="focus-actions"><button onclick="show('home')">Übersicht</button><button class="primary" onclick="saveSession()">Abschließen</button></div></div><details id="sessionDetails" class="session-details"><summary>⚙ Trainingsdetails · Datum, Aufwärmen & Auswertung</summary><div class="session-fields"><div class="grid"><div><label>Datum</label><input type="date" id="date"></div><div><label>Trainingstyp</label><select id="type" onchange="renderType()"><option value="kraft">Krafttraining</option><option value="cardio">Cardio / Ausdauer</option><option value="sonstiges">Athletik / Sonstiges</option></select></div></div><label>Name der Einheit</label><input id="title" placeholder="z. B. Oberkörper"><div class="grid"><div><label>Dauer (Minuten) · automatisch</label><input id="duration" type="number" min="0" placeholder="Wird gemessen" readonly title="Wird im Live-Modus automatisch berechnet"></div><div><label>Session-RPE (0–10)</label><input id="srpe" type="number" min="0" max="10" step="0.5" placeholder="6"></div></div></div></details><div id="strengthFields">
+<div id="liveClockPanel" class="live-clock" hidden><div><small>TRAININGSZEIT</small><br><strong id="liveClock">00:00</strong></div><div class="live-actions"><button id="livePause" onclick="toggleSessionPause()">Pausieren</button><button onclick="saveDraft()">Jetzt sichern</button></div></div>
+ <div id="draftStatus" class="training-status" aria-live="polite" style="margin-top:12px">Noch kein Entwurf gespeichert.</div>
+<details class="warmup-box warmup-fold"><summary>Aufwärmen · Einstellungen und Abschluss</summary><div class="warmup-inner"><div class="row space"><strong>Aufwärmen</strong><label style="margin:0;display:flex;gap:7px;align-items:center"><input type="checkbox" id="warmupEnabled" checked onchange="updateWarmup()" style="width:18px"> Aktiv</label></div>
+<div id="warmupDetail"><div class="grid"><div><label>Allgemein (Min.)</label><input type="number" id="warmupMinutes" min="0" max="60" value="5" onchange="updateWarmup()"></div><div><label>Aufwärmsätze / Notiz</label><input id="warmupNotes" placeholder="z. B. 2–3 Ramp-up-Sätze" oninput="updateWarmup()"></div></div><label style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="warmupDone" onchange="updateWarmup()" style="width:18px"> Warm-up abgeschlossen</label><p class="hint">Aufwärmsätze gehören nicht zum regulären Arbeitsvolumen.</p></div></div></details>
+<div id="restInlineIndicator" class="rest-inline-indicator" hidden><span>⏱ Satzpause <strong id="restInlineClock">02:00</strong></span><button type="button" onclick="openRestOverlay()">Groß anzeigen</button></div><div id="exerciseNavigator"></div><div id="exercises"></div><details id="workoutExtra"><summary>Weitere Optionen · Satzpause, Übung hinzufügen</summary><div id="restPanel" class="rest-panel"><div class="row space"><strong>⏱ Satzpause</strong><span id="restState" class="hint">Bereit</span></div><div class="rest-head"><div class="rest-count" id="restCount" aria-live="off">02:00</div><button class="rest-quick" type="button" onclick="rest.running || rest.remaining>0 ? restToggle() : restStart()" id="restQuickBtn">Pause / Weiter</button></div><details class="rest-more"><summary>Pausendauer und weitere Steuerung</summary><div class="rest-row"><label>Pause (Sekunden)<input type="number" id="restSeconds" min="15" max="900" step="15" value="120" onchange="changeRestLength(this.value)"></label><button onclick="changeRestLength(60)">60 s</button><button onclick="changeRestLength(90)">90 s</button><button onclick="changeRestLength(180)">180 s</button></div><div class="rest-controls" style="margin-top:10px"><button class="primary" onclick="restStart()">Start / Neu</button><button onclick="restToggle()" id="restToggleBtn">Pause</button><button onclick="restStop()">Stopp</button></div><p class="hint">Startet nach jedem bestätigten Satz automatisch. Die Endzeit bleibt beim Neuladen erhalten.</p></details></div>
 <div class="row space" style="margin-top:14px"><h3>Deine Übungen</h3><button onclick="addExercise()">+ Übung</button></div>
-<div id="exerciseNavigator"></div><div id="exercises"></div>
-</div><div id="cardioFields" hidden><div class="grid"><div><label>Sportart</label><select id="sport"><option>Radfahren Indoor</option><option>Rennrad</option><option>Radfahren (allgemein)</option><option>Mountainbike</option><option>Laufen</option><option>Gehen</option><option>Schwimmen</option><option>Ergometer</option><option>Andere</option></select></div><div><label>Distanz (km)</label><input id="distance" type="number" step="0.01" min="0" placeholder="optional"></div><div><label>Ø Herzfrequenz (bpm)</label><input id="hr" type="number" min="0" placeholder="optional"></div><div><label>Ø Leistung (Watt)</label><input id="power" type="number" min="0" placeholder="optional"></div><div><label>Max. Puls (bpm)</label><input id="maxhr" type="number" min="0" placeholder="optional"></div><div><label>Training / Zone</label><select id="zone"><option>Locker / GA1</option><option>Tempo</option><option>Schwelle</option><option>VO₂max-Intervalle</option><option>HIIT / anaerob</option><option>Regeneration</option><option>Sonstiges</option></select></div></div><label>Intervalle / Trainingsinhalt</label><textarea id="intervals" rows="2" placeholder="z. B. 4 × 3 Min bei RPE 8; 3 Min locker"></textarea></div><label>Notizen / Schmerzen / Regeneration</label><textarea id="notes" rows="3" placeholder="Wie lief die Einheit? Gelenke, Energie, Besonderheiten"></textarea><div class="row" style="margin-top:14px"><button class="primary" style="flex:1" onclick="saveSession()">Training speichern</button><button onclick="discardTraining()">Verwerfen</button></div></div></section>
+</details>
+</div><div id="cardioFields" hidden><div class="grid"><div><label>Sportart</label><select id="sport"><option>Radfahren Indoor</option><option>Rennrad</option><option>Radfahren (allgemein)</option><option>Mountainbike</option><option>Laufen</option><option>Gehen</option><option>Schwimmen</option><option>Ergometer</option><option>Andere</option></select></div><div><label>Distanz (km)</label><input id="distance" type="number" step="0.01" min="0" placeholder="optional"></div><div><label>Ø Herzfrequenz (bpm)</label><input id="hr" type="number" min="0" placeholder="optional"></div><div><label>Ø Leistung (Watt)</label><input id="power" type="number" min="0" placeholder="optional"></div><div><label>Max. Puls (bpm)</label><input id="maxhr" type="number" min="0" placeholder="optional"></div><div><label>Training / Zone</label><select id="zone"><option>Locker / GA1</option><option>Tempo</option><option>Schwelle</option><option>VO₂max-Intervalle</option><option>HIIT / anaerob</option><option>Regeneration</option><option>Sonstiges</option></select></div></div><label>Intervalle / Trainingsinhalt</label><textarea id="intervals" rows="2" placeholder="z. B. 4 × 3 Min bei RPE 8; 3 Min locker"></textarea></div><details id="workoutNotes" class="session-details"><summary>Notizen / Beschwerden (optional)</summary><div class="session-fields"><label for="notes">Notizen / Schmerzen / Regeneration</label><textarea id="notes" rows="3" placeholder="Wie lief die Einheit? Gelenke, Energie, Besonderheiten"></textarea><button class="danger" type="button" onclick="discardTraining()">Trainingsentwurf verwerfen</button></div></details><div class="finish-launch"><button class="primary" onclick="saveSession()">✓ Training abschließen</button><button onclick="discardTraining()">Verwerfen</button></div></div></section>
+<dialog id="programIntro" class="program-intro" aria-labelledby="introTitle"><div class="intro-head"><div><div class="hint">DEIN TRAININGSPLAN</div><h2 id="introTitle">Training vorbereiten</h2></div><button type="button" onclick="closeProgramIntro()" aria-label="Schließen">✕</button></div><div class="intro-body"><p class="intro-lead">Deine Progressionshinweise vor dem Start. Die Gewichte sind Vorschläge, keine automatischen Anpassungen.</p><div id="introAdvice"></div></div><div class="intro-footer"><button onclick="closeProgramIntro()">Zurück</button><button class="primary" onclick="beginProgramIntro()">Training starten →</button></div></dialog>
+<dialog id="restBreakDialog" class="rest-break-dialog" aria-labelledby="restBreakTitle" aria-modal="true"><div class="rest-break-content"><div id="restBreakTitle" class="rest-break-caption">⏱ Deine Satzpause</div><div class="rest-break-clock" id="restBreakClock" role="timer" aria-live="off">02:00</div><div id="restBreakStatus" class="rest-break-status">Die Pause läuft. Du kannst jederzeit weitermachen.</div><button type="button" class="primary rest-break-main-action" id="restBreakNext" onclick="restOverlayContinue()">Weiter zum nächsten Satz</button><div class="rest-break-secondary"><button type="button" onclick="closeRestOverlay()">Ausblenden</button><button type="button" onclick="restToggle()" id="restBreakToggle">Pausieren</button><button type="button" onclick="restStop();closeRestOverlay()">Beenden</button></div><p class="hint" style="margin-top:16px">Die Zeit läuft im Hintergrund weiter, auch wenn du die Übung wechselst.</p></div></dialog>
+<dialog id="finishDialog" class="finish-dialog" aria-labelledby="finishTitle">
+ <div class="finish-head"><div><span class="hint">TRAININGSABSCHLUSS</span><h2 id="finishTitle">Einheit abschließen</h2></div><button type="button" onclick="closeFinish()" aria-label="Schließen">✕</button></div>
+ <div class="finish-body">
+  <div class="finish-summary"><span id="finishName">Training</span><span id="finishTime">0 Min.</span><span id="finishSets">0 Sätze</span></div>
+  <div class="finish-section"><h3>Wie anstrengend war die gesamte Einheit?</h3><p>Session-RPE (0–10) für das gesamte Training, nicht für einen einzelnen Satz. Bitte nach Ende der Einheit bewerten.</p>
+   <div class="finish-choice-row" id="finishRpeChoices"></div><p style="margin:9px 0 0" id="finishRpeExplain" class="finish-small">Noch keine Bewertung ausgewählt.</p>
+  </div>
+  <div class="finish-section"><h3>Kurzer Erholungs-Check</h3><p>Optional: subjektiver Zustand direkt nach dem Training. Keine medizinische Diagnose.</p>
+   <label for="finishEnergy">Energiegefühl</label><select id="finishEnergy"><option value="">Nicht angegeben</option><option value="1">1 · Sehr niedrig</option><option value="2">2 · Niedrig</option><option value="3">3 · Mittel</option><option value="4">4 · Gut</option><option value="5">5 · Sehr gut</option></select>
+   <label for="finishMuscle" style="margin-top:12px">Muskuläre Ermüdung</label><select id="finishMuscle"><option value="">Nicht angegeben</option><option value="1">1 · Keine / kaum</option><option value="2">2 · Gering</option><option value="3">3 · Mittel</option><option value="4">4 · Hoch</option><option value="5">5 · Sehr hoch</option></select>
+  </div>
+  <div id="finishQuality" class="finish-quality" role="status"></div>
+  <label class="finish-small" style="display:flex;gap:10px;align-items:flex-start"><input id="finishAcknowledged" type="checkbox" style="width:18px;flex:none;margin-top:3px" onchange="refreshFinishQuality()"><span>Ich habe die Hinweise geprüft. Fehlende Angaben dürfen als unvollständig gespeichert werden.</span></label>
+  <div class="finish-actions"><button onclick="closeFinish()">Zurück</button><button class="primary" id="finishConfirm" onclick="confirmFinish()">Training speichern</button></div>
+  <p class="finish-small" style="margin-top:12px">Alle Angaben bleiben lokal in Athletik360. Fehlende Werte werden nicht künstlich ergänzt.</p>
+ </div>
+</dialog>
+
 <section id="logs" hidden><div class="card"><div class="row space"><h2>Trainingstagebuch</h2><select id="filter" style="width:auto" onchange="renderLogs()"><option value="all">Alle</option><option value="kraft">Kraft</option><option value="cardio">Cardio</option><option value="sonstiges">Sonstige</option></select></div><div id="logItems"></div></div></section>
 
 <section id="analysis" hidden>
  <div class="card"><h2>Leistungsanalyse</h2><p class="hint">Deine Entwicklung aus den lokal gespeicherten Trainingseinheiten – ohne Cloud oder zusätzliche Anmeldung.</p><label for="analysisPeriod">Zeitraum für die Grafiken</label><select id="analysisPeriod" onchange="renderAnalytics()"><option value="30">Letzte 30 Tage</option><option value="90" selected>Letzte 90 Tage</option><option value="180">Letzte 180 Tage</option><option value="365">Letzte 12 Monate</option><option value="all">Gesamter Verlauf</option></select></div>
+
+ <div class="card" id="deloadPlanCard">
+  <h2>🗓️ Deload &amp; Trainingsblöcke</h2>
+  <p class="hint">Planungshilfe für das Krafttraining. Keine automatische Änderung der Sätze oder Lasten; ein Deload ist nicht allein wegen des Kalenderdatums zwingend.</p>
+  <div class="row space" style="margin-bottom:9px"><strong>Deload-Planer</strong><label style="display:flex;align-items:center;gap:7px;margin:0"><input type="checkbox" id="deloadEnabled" onchange="saveDeloadPlan()" style="width:18px"> Aktiv</label></div>
+  <div class="deload-grid">
+   <div><label for="deloadStart">Beginn des Trainingsblocks</label><input id="deloadStart" type="date" onchange="saveDeloadPlan()"></div>
+   <div><label for="deloadCycle">Blocklänge inklusive Deload</label><select id="deloadCycle" onchange="saveDeloadPlan()"><option value="4">4 Wochen</option><option value="5" selected>5 Wochen</option><option value="6">6 Wochen</option><option value="7">7 Wochen</option><option value="8">8 Wochen</option></select></div>
+   <div><label for="deloadReduction">Reduktion der Kraft-Arbeitssätze</label><select id="deloadReduction" onchange="saveDeloadPlan()"><option value="30">30 %</option><option value="40">40 %</option><option value="50" selected>50 %</option><option value="60">60 %</option></select></div>
+  </div>
+  <div id="deloadOverview" class="deload-banner" aria-live="polite">Plan wird geladen …</div>
+  <div class="deload-weeks" id="deloadWeeks"></div>
+  <details><summary>Beispiel und Grenzen der Planung</summary>
+    <p class="hint">Bei 12 Arbeitssätzen für eine Muskelgruppe in einer üblichen Woche entspräche eine Reduktion um 50 % ungefähr 6 Arbeitssätzen. Das ist nur ein Beispiel, keine individuelle Verordnung. Übungsreihenfolge, Nähe zum Muskelversagen und Belastung der Ausdauereinheiten müssen zusätzlich berücksichtigt werden.</p>
+    <p class="hint">Der Plan zeigt eine mögliche Entlastungswoche am Ende des Blocks. Krankheit, starke Beschwerden, sinkende Leistungsfähigkeit oder Erschöpfung erfordern eine individuelle Anpassung – unabhängig vom Kalender. Ein fehlender RPE-Wert ist kein Hinweis auf gute oder schlechte Regeneration.</p>
+  </details>
+  <div id="deloadSaveStatus" class="deload-note"></div>
+ </div>
+ <div class="card" id="readinessTrendCard"><h2>Trainingsbereitschaft · Verlauf</h2><p class="hint">Tägliche Selbstauskünfte als Entscheidungshilfe. Keine automatischen Empfehlungen auf Basis eines einzelnen Messwerts.</p><div id="readinessTrend"></div></div>
+ <div class="card" id="loadMonitoringCard">
+  <h2>📅 Belastungsmonitoring · Wochenübersicht</h2>
+  <p class="hint">Kraft und Ausdauer gemeinsam betrachten – dokumentierte Trainingsbelastung, keine automatische Erholungsdiagnose.</p>
+  <div class="load-kpis" id="loadKpis"></div>
+  <h3>Letzte 8 Kalenderwochen</h3>
+  <div class="load-scroll"><table class="load-table"><thead><tr><th>Woche ab</th><th>Kraft</th><th>Cardio</th><th>Minuten</th><th>Arbeitssätze</th><th>sRPE × min</th></tr></thead><tbody id="loadWeeks"></tbody></table></div>
+  <div id="loadInterpretation" class="analysis-note" style="margin-top:12px"></div>
+  <details class="load-explain"><summary>Berechnung und Datenqualität</summary>
+   <p class="hint">Die Woche beginnt montags. Trainingsminuten sind die gespeicherten Gesamtdauern aller Trainingstypen. Arbeitssätze zählen nur, wenn sie als abgeschlossen markiert sind und plausible positive Wiederholungen eingetragen wurden; unbestätigte Sätze werden nicht mitgezählt. Ein unplausibles Gewicht wird nicht zur Gesamtlast verrechnet.</p>
+   <p class="hint">Die subjektive Trainingslast ist <strong>Session-RPE × Minuten</strong> (willkürliche Einheiten). Es werden ausschließlich Einheiten mit gültiger Dauer und Session-RPE zwischen 1 und 10 berücksichtigt. Fehlende Werte werden nicht mit 0 ersetzt.</p>
+   <p class="hint">Trainingsumfang und Session-RPE allein sagen nicht zuverlässig voraus, ob du ausreichend regeneriert bist. Training aus anderen Quellen oder nicht dokumentierte Einheiten fehlen gegebenenfalls.</p>
+  </details>
+ </div>
  <div class="card"><h2>🏋️ Kraftentwicklung</h2><div class="analysis-selects"><div><label for="analysisExercise">Übung</label><select id="analysisExercise" onchange="renderStrengthOnly()"><option value="">Keine Übungen</option></select></div><div><label for="analysisStrengthMetric">Kennzahl</label><select id="analysisStrengthMetric" onchange="renderAnalytics()"><option value="maximum">Höchste Satzlast (kg)</option><option value="e1rm">Geschätztes 1RM (kg)</option><option value="volume">Übungsvolumen (kg × Wdh.)</option></select></div></div><div id="strengthPlot" class="analysis-plot"></div><p id="strengthSummary" class="statline"></p><div class="analysis-note">Vergleiche immer dieselbe Übung, Ausführung und Maschine. Das geschätzte 1RM nutzt die Epley-Formel für Sätze mit 1–10 Wiederholungen. Es ist <b>keine</b> direkte Maximalkraftmessung. Kurzhantelgewichte werden je Hand wie eingetragen behandelt.</div></div>
- <div class="card"><h2>📊 Wöchentliches Kraftvolumen</h2><div id="volumePlot" class="analysis-plot"></div><p id="volumeSummary" class="statline"></p><p class="hint">Berechnung: Summe aus eingetragenem Gewicht × Wiederholungen. Nur Sätze mit numerischen Angaben zählen. Kein direkter Vergleich unterschiedlicher Maschinen und Übungszusammenstellungen.</p></div>
+ <div class="card"><h2>📊 Wöchentliches Kraftvolumen</h2><div id="volumePlot" class="analysis-plot"></div><p id="volumeSummary" class="statline"></p><p class="hint">Berechnung: Summe aus eingetragenem Gewicht × Wiederholungen. Nur bestätigte Sätze mit plausiblen numerischen Angaben zählen. Kein direkter Vergleich unterschiedlicher Maschinen und Übungszusammenstellungen.</p></div>
  <div class="card"><h2>🚴 Ausdauer &amp; Herz-Kreislauf</h2><div class="analysis-selects"><div><label for="analysisSport">Sportart</label><select id="analysisSport" onchange="renderAnalytics()"><option value="all">Alle</option><option value="bikeindoor">Rad Indoor</option><option value="bikeoutdoor">Rad Outdoor</option><option value="run">Laufen</option><option value="walk">Gehen</option><option value="swim">Schwimmen</option></select></div><div><label for="analysisCardioMetric">Kennzahl</label><select id="analysisCardioMetric" onchange="renderAnalytics()"><option value="minutes">Trainingsminuten / Woche</option><option value="power">Ø Leistung pro Einheit (W)</option><option value="hr">Ø Puls pro Einheit (bpm)</option></select></div></div><label class="hint" style="display:flex;gap:8px;align-items:center;margin-top:10px"><input type="checkbox" id="analysisShortActivity" checked onchange="renderAnalytics()" style="width:18px;accent-color:var(--accent)"> Nur Einheiten ab 10 Minuten berücksichtigen</label><div id="cardioPlot" class="analysis-plot"></div><p id="cardioSummary" class="statline"></p><p class="hint">Eine steigende Trainingsdauer allein belegt keine Verbesserung der Herz-Kreislauf-Leistungsfähigkeit. Watt- und Pulsverläufe sind nur unter ähnlichen Bedingungen sinnvoll vergleichbar.</p></div>
  <div class="card"><h2>⚖️ Körpergewicht &amp; Fitnessmarker</h2><label for="analysisHealthMetric">Kennzahl anzeigen</label><select id="analysisHealthMetric" onchange="renderAnalytics()"><option value="weight">Körpergewicht (kg)</option><option value="rhr">Ruhepuls (bpm)</option><option value="hrv">HRV (ms)</option><option value="vo2">Garmin-VO₂max-Schätzwert (ml/kg/min)</option></select><div id="healthPlot" class="analysis-plot"></div><p id="healthSummary" class="statline"></p><div class="analysis-note">Diese Werte werden zunächst <b>manuell</b> aus Garmin Connect oder deiner Waage übernommen. Ruhepuls und HRV werden durch Schlaf, Stress und Gesundheit beeinflusst; Garmin-VO₂max ist eine Schätzung, kein Labortest.</div><h3>Messung erfassen</h3><label for="markerDate">Datum</label><input id="markerDate" type="date"><div class="analysis-selects"><div><label for="marker-weight">Körpergewicht (kg)</label><input id="marker-weight" type="text" inputmode="decimal" placeholder="z. B. 112,5"></div><div><label for="marker-rhr">Ruhepuls (bpm)</label><input id="marker-rhr" type="text" inputmode="numeric" placeholder="z. B. 58"></div><div><label for="marker-hrv">HRV (ms)</label><input id="marker-hrv" type="text" inputmode="decimal" placeholder="z. B. 42"></div><div><label for="marker-vo2">Garmin VO₂max</label><input id="marker-vo2" type="text" inputmode="decimal" placeholder="z. B. 38"></div></div><button class="primary full" style="margin-top:12px" onclick="saveMarker()">Messwerte speichern</button><h3>Letzte Messungen</h3><div id="healthLog"></div></div>
  </section>
-<section id="settings" hidden><div class="card"><h2>Datensicherung</h2><p class="hint">Alle Trainingsdaten werden lokal auf diesem Gerät gespeichert. Es gibt kein Benutzerkonto und keine Cloud-Synchronisation. Sichere sie regelmäßig als JSON-Datei.</p><div class="row"><button class="primary" onclick="exportData()">Backup exportieren</button><button onclick="document.getElementById('import').click()">Backup importieren</button><input type="file" id="import" accept="application/json,.json" hidden onchange="importData(event)"></div><p class="hint">Ein Import ersetzt die aktuell gespeicherten Daten nach Rückfrage. Löschen von Browserdaten kann Einträge entfernen.</p></div><div class="card"><h2>Garmin Connect – Aktivitäten importieren</h2><p class="hint">Hier kannst du eine Garmin-JSON-Datei importieren, die du zuvor am PC erstellt und privat auf dein Samsung übertragen hast. Die Datei wird nur auf deinem Gerät gelesen und <b>nicht an GitHub gesendet</b>. Eine automatische Garmin-Synchronisierung ist noch nicht eingerichtet.</p><div class="garmin-note hint">Wenn du ein Krafttraining bereits mit Gewichten, Sätzen und RIR eingetragen hast, kannst du die Garmin-Aufzeichnung der vorhandenen Einheit zuordnen, statt ein zweites Training anzulegen.</div><label for="garminFile">Garmin-Aktivitäten als JSON-Datei auswählen</label><input class="file-input" id="garminFile" type="file" accept=".json,application/json" onchange="previewGarminFile(event)"><div id="garminPreview" hidden><p id="garminSummary" class="hint" aria-live="polite"></p><div class="import-buttons"><button onclick="selectGarminAll(true)">Alle neuen auswählen</button><button onclick="selectGarminAll(false)">Auswahl aufheben</button></div><div id="garminItems"></div><button class="primary full" style="margin-top:12px" onclick="importSelectedGarmin()">Ausgewählte Aktivitäten übernehmen</button><p class="hint">Bereits importierte Garmin-Aktivitäten werden anhand ihrer Garmin-ID erkannt. Vor dem Import wird deine bisherige Trainingsdatenbank nicht gelöscht.</p></div></div><div class="card"><h2>Über die App</h2><p class="muted">Athletik 360 · Version 1.3 – Trainingsmodus</p><p class="hint">Garmin-Aktivitäten können lokal aus einer JSON-Datei übernommen werden. Eine direkte Konto-Anbindung an Garmin, Wahoo, icTrainer, Strava oder TrainingPeaks besteht noch nicht. Die App ersetzt keine medizinische Diagnostik.</p></div></section></main><nav><button id="nav-home" class="active" onclick="show('home')">⌂<div>Übersicht</div></button><button id="nav-train" onclick="show('train')">＋<div>Training</div></button><button id="nav-logs" onclick="show('logs')">▤<div>Verlauf</div></button><button id="nav-analysis" onclick="show('analysis')"><span class="navicon">▥</span><div>Analyse</div></button><button id="nav-settings" onclick="show('settings')"><span class="navicon">⚙</span><div>Daten</div></button></nav><div class="toast" id="toast"></div><script>
+<section id="settings" hidden><div class="card"><h2>Datensicherung</h2><p class="hint">Alle Trainingsdaten werden lokal auf diesem Gerät gespeichert. Es gibt kein Benutzerkonto und keine Cloud-Synchronisation. Sichere sie regelmäßig als JSON-Datei.</p><div class="row"><button class="primary" onclick="exportData()">Backup exportieren</button><button onclick="document.getElementById('import').click()">Backup importieren</button><input type="file" id="import" accept="application/json,.json" hidden onchange="importData(event)"></div><p class="hint">Ein Import ersetzt die aktuell gespeicherten Daten nach Rückfrage. Löschen von Browserdaten kann Einträge entfernen.</p></div><div class="card"><h2>Garmin Connect – Aktivitäten importieren</h2><p class="hint">Hier kannst du eine Garmin-JSON-Datei importieren, die du zuvor am PC erstellt und privat auf dein Samsung übertragen hast. Die Datei wird nur auf deinem Gerät gelesen und <b>nicht an GitHub gesendet</b>. Eine automatische Garmin-Synchronisierung ist noch nicht eingerichtet.</p><div class="garmin-note hint">Wenn du ein Krafttraining bereits mit Gewichten, Sätzen und RIR eingetragen hast, kannst du die Garmin-Aufzeichnung der vorhandenen Einheit zuordnen, statt ein zweites Training anzulegen.</div><label for="garminFile">Garmin-Aktivitäten als JSON-Datei auswählen</label><input class="file-input" id="garminFile" type="file" accept=".json,application/json" onchange="previewGarminFile(event)"><div id="garminPreview" hidden><p id="garminSummary" class="hint" aria-live="polite"></p><div class="import-buttons"><button onclick="selectGarminAll(true)">Alle neuen auswählen</button><button onclick="selectGarminAll(false)">Auswahl aufheben</button></div><div id="garminItems"></div><button class="primary full" style="margin-top:12px" onclick="importSelectedGarmin()">Ausgewählte Aktivitäten übernehmen</button><p class="hint">Bereits importierte Garmin-Aktivitäten werden anhand ihrer Garmin-ID erkannt. Vor dem Import wird deine bisherige Trainingsdatenbank nicht gelöscht.</p></div></div><div class="card"><h2>Über die App</h2><p class="muted">Athletik 360 · Trainingsmodus 2.0 – Trainingssteuerung, Check-in und Verlauf</p><p class="hint">Garmin-Aktivitäten können lokal aus einer JSON-Datei übernommen werden. Eine direkte Konto-Anbindung an Garmin, Wahoo, icTrainer, Strava oder TrainingPeaks besteht noch nicht. Die App ersetzt keine medizinische Diagnostik.</p></div></section></main><nav><button id="nav-home" class="active" onclick="show('home')">⌂<div>Übersicht</div></button><button id="nav-train" onclick="show('train')">＋<div>Training</div></button><button id="nav-logs" onclick="show('logs')">▤<div>Verlauf</div></button><button id="nav-analysis" onclick="show('analysis')"><span class="navicon">▥</span><div>Analyse</div></button><button id="nav-settings" onclick="show('settings')"><span class="navicon">⚙</span><div>Daten</div></button></nav><div class="toast" id="toast"></div><script>
 const KEY='athletik2027_v1'; const DRAFT_KEY='athletik360_draft_v13'; const REST_KEY='athletik360_timer_v13'; const templates={
 'Oberkörper':[{name:'KH-Bankdrücken neutral',n:3,reps:'8–10',kg:24},{name:'Brustgestütztes Kabelrudern',n:3,reps:'8–10',kg:88.3},{name:'Latzug',n:3,reps:'8–12',kg:79},{name:'Schulterdrücken',n:2,reps:'8–12',kg:55},{name:'Seitheben',n:2,reps:'12–15'},{name:'Bizepscurls',n:2,reps:'10–15'},{name:'Trizepsdrücken Kabel',n:2,reps:'10–15'}],
 'Unterkörper':[{name:'Trap-Bar-Kreuzheben',n:3,reps:'5',kg:155},{name:'45°-Beinpresse',n:3,reps:'8–12',kg:300},{name:'Beinbeuger eGym',n:3,reps:'10–12',kg:52},{name:'Walking Lunges',n:2,reps:'8/Bein',kg:5},{name:'Wadenheben',n:3,reps:'10–15'},{name:'Dead Bug',n:2,reps:'10/Seite'}],
 'Ganzkörper':[{name:'Explosiver Goblet Squat',n:2,reps:'5',kg:10},{name:'Goblet Squat',n:2,reps:'10',kg:30},{name:'KH-Schrägbankdrücken',n:3,reps:'8–12'},{name:'Kabelrudern / Latzug',n:3,reps:'10–12'},{name:'Hip Thrust',n:2,reps:'8–12'},{name:'Farmer Carry',n:3,reps:'30–40 m'},{name:'Face Pull',n:2,reps:'12–15'}]};
-const week=[['Mo','Oberkörper'],['Di','Cardio I – aerob'],['Mi','Unterkörper'],['Do','Regeneration'],['Fr','Ganzkörper + Athletik'],['Sa','Cardio II – länger'],['So','Ruhetag']];let db=load(),draft=[],editing=null,currentExerciseIndex=0,warmup={enabled:true,minutes:5,notes:"",done:false};let rest={duration:120,remaining:120,endAt:0,running:false};let draftSaveHandle=null;
-function load(){try{const x=JSON.parse(localStorage.getItem(KEY));return Array.isArray(x)?x:[]}catch{return []}}function persist(){try{localStorage.setItem(KEY,JSON.stringify(db));return true}catch{alert('Speicherung fehlgeschlagen. Bitte Speicherplatz überprüfen.');return false}}function el(id){return document.getElementById(id)}function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function today(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};function notify(s){el('toast').textContent=s;el('toast').style.display='block';setTimeout(()=>el('toast').style.display='none',2200)}
-function show(page){for(const id of ['home','train','logs','analysis','settings']){el(id).hidden=id!==page;el('nav-'+id).classList.toggle('active',id===page)}if(page==='home')renderHome();if(page==='logs')renderLogs();if(page==='analysis')renderAnalytics();window.scrollTo(0,0)}
-function renderHome(){updateResumeCard();el('count').textContent=db.length;let now=Date.now();el('week').textContent=db.filter(s=>{let d=new Date(s.date+'T12:00:00');let diff=now-d.getTime();return diff>=0&&diff<7*864e5}).length;el('weekplan').innerHTML=week.map(w=>`<div class="row space" style="padding:9px 0;border-bottom:1px solid var(--line)"><b>${w[0]}</b><span class="muted">${esc(w[1])}</span></div>`).join('');el('recent').innerHTML=db.length?db.slice().sort(sortDate).slice(0,3).map(s=>`<div class="history"><b>${esc(s.title)}</b><div class="hint">${esc(s.date)} · ${esc(s.duration||'–')} Min. · ${s.type==='kraft'?'Kraft':s.type==='cardio'?'Cardio':'Sonstiges'}</div></div>`).join(''):'<p class="hint">Noch keine Trainingseinheiten gespeichert.</p>'}
+const week=[['Mo','Oberkörper'],['Di','Cardio I – aerob'],['Mi','Unterkörper'],['Do','Regeneration'],['Fr','Ganzkörper + Athletik'],['Sa','Cardio II – länger'],['So','Ruhetag']];let finishRpeChosen=null,finishCheckin={energy:null,muscle:null};let db=[],draft=[],editing=null,currentExerciseIndex=0,warmup={enabled:true,minutes:5,notes:"",done:false};let rest={duration:120,remaining:120,endAt:0,running:false};let draftSaveHandle=null,draftPresent=false;let sessionClock=null,discardRecovery=null;let draftEpoch=0;let deloadPlan={enabled:false,start:null,cycle:5,reduction:50};
+async function persist(){
+ try{await StorageV2.put('sessions',db);return true}
+ catch(e){alert('Speicherung in IndexedDB fehlgeschlagen: '+e.message);return false}
+}
+function el(id){return document.getElementById(id)}function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function displayDate(v){const m=String(v??'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]}.${m[2]}.${m[1].slice(-2)}`:String(v??'')};function today(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};function notify(s){el('toast').textContent=s;el('toast').style.display='block';setTimeout(()=>el('toast').style.display='none',2200)}
+// Trainingsbereitschaft ist eine deskriptive Entscheidungshilfe, keine Vorhersage.
+let readinessEntries=[];
+function precheckFor(date){return readinessEntries.find(x=>x.date===date)||null}
+function readinessOption(x){const n=Number(x);return x===null||x===undefined||x===''||!Number.isInteger(n)||n<1||n>5?null:n}
+function assessReadiness(entry,history){
+ if(!entry||[entry.energy,entry.sleep,entry.soreness].some(x=>readinessOption(x)===null))return {status:'unvollständig',message:'Für eine Einordnung fehlen Angaben. Das bedeutet weder gute noch schlechte Erholung.',caution:false};
+ const low=entry.energy<=2||entry.sleep<=2,high=entry.soreness>=4;
+ const same=history.filter(x=>x.date<entry.date&&x.date>=dateShift(entry.date,-7)).sort((a,b)=>b.date.localeCompare(a.date));
+ const repeated=same.some(x=>readinessOption(x.energy)!==null&&readinessOption(x.sleep)!==null&&readinessOption(x.soreness)!==null&&(x.energy<=2||x.sleep<=2||x.soreness>=4));
+ if(low&&high)return {status:'Belastung überprüfen',message:'Niedrige Energie oder Schlafqualität zusammen mit ausgeprägten Muskelbeschwerden. Intensität und Umfang heute überprüfen; Beschwerden und Technik priorisieren.',caution:true};
+ if(repeated&&(low||high))return {status:'Belastung überprüfen',message:'Auffällige Selbstauskünfte an mehreren Tagen innerhalb einer Woche. Belastung, Alltag und Erholung gemeinsam prüfen.',caution:true};
+ if(low||high)return {status:'Tagesform beachten',message:'Ein einzelner auffälliger Wert ist kein Überlastungsnachweis. Heute behutsam starten und Belastung an Verlauf, Beschwerden und Technik anpassen.',caution:true};
+ return {status:'Keine auffälligen Angaben',message:'Die heutigen Antworten zeigen keine auffällige Kombination. Das ist keine Bestätigung vollständiger Erholung; halte dich an Technik, RIR und den Trainingsplan.',caution:false};
+}
+function dateShift(iso,days){const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+days);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function renderReadiness(){
+ const date=today(),entry=precheckFor(date);el('readinessDate').textContent=displayDate(date);
+ for(const [field,id] of [['energy','preEnergy'],['sleep','preSleep'],['soreness','preSoreness']])el(id).value=entry?.[field]??'';
+ const advice=assessReadiness(entry,readinessEntries),node=el('readinessAdvice');
+ node.classList.toggle('caution',advice.caution);node.innerHTML='<strong>'+esc(entry?advice.status:'Kein Tages-Check')+'</strong>'+esc(entry?advice.message:'Optional vor dem Training ausfüllen. Ohne Angaben keine automatische Beurteilung.');
+ const history=el('readinessTrend');if(!history)return;
+ const recent=readinessEntries.filter(x=>x.date<=date&&x.date>=dateShift(date,-30)).slice().sort((a,b)=>b.date.localeCompare(a.date));
+ if(!recent.length){history.innerHTML='<p class="hint">Noch keine Check-ins im letzten Monat.</p>';return}
+ history.innerHTML='<div class="readiness-trend">'+recent.map(x=>{const state=assessReadiness(x,readinessEntries);return '<article><strong>'+esc(displayDate(x.date))+'</strong> · Energie '+esc(x.energy??'–')+'/5 · Schlaf '+esc(x.sleep??'–')+'/5 · Beschwerden '+esc(x.soreness??'–')+'/5<br><span class="hint">'+esc(state.status)+'</span></article>'}).join('')+'</div>';
+}
+async function savePrecheck(){
+ const record={date:today(),energy:readinessOption(el('preEnergy').value),sleep:readinessOption(el('preSleep').value),soreness:readinessOption(el('preSoreness').value)};
+ if([record.energy,record.sleep,record.soreness].every(x=>x===null)){alert('Bitte mindestens eine Angabe wählen oder Zurücksetzen verwenden.');return}
+ const next=[...readinessEntries.filter(x=>x.date!==record.date),record].sort((a,b)=>a.date.localeCompare(b.date));
+ try{await StorageV2.put('readiness',next);readinessEntries=next;renderReadiness();notify('Tages-Check gespeichert')}
+ catch(e){alert('Tages-Check konnte nicht gespeichert werden: '+e.message)}
+}
+async function clearPrecheck(){
+ const next=readinessEntries.filter(x=>x.date!==today());
+ try{await StorageV2.put('readiness',next);readinessEntries=next;renderReadiness();notify('Tages-Check zurückgesetzt')}
+ catch(e){alert('Zurücksetzen fehlgeschlagen: '+e.message)}
+}
+function show(page){if(page!=='train')closeRestOverlay();for(const id of ['home','train','logs','analysis','settings']){el(id).hidden=id!==page;el('nav-'+id).classList.toggle('active',id===page)}el('train').classList.toggle('focus-mode',page==='train'&&el('type').value==='kraft'&&draft.length>0);if(page==='train')updateFocusHeader();if(page==='home'){renderHome();renderReadiness();}if(page==='logs')renderLogs();if(page==='analysis'){renderAnalytics();renderReadiness();}window.scrollTo(0,0)}
+function renderHome(){updateResumeCard();el('count').textContent=db.length;let now=Date.now();el('week').textContent=db.filter(s=>{let d=new Date(s.date+'T12:00:00');let diff=now-d.getTime();return diff>=0&&diff<7*864e5}).length;el('weekplan').innerHTML=week.map(w=>`<div class="row space" style="padding:9px 0;border-bottom:1px solid var(--line)"><b>${w[0]}</b><span class="muted">${esc(w[1])}</span></div>`).join('');el('recent').innerHTML=db.length?db.slice().sort(sortDate).slice(0,3).map(s=>`<div class="history"><b>${esc(s.title)}</b><div class="hint">${esc(displayDate(s.date))} · ${esc(s.duration||'–')} Min. · ${s.type==='kraft'?'Kraft':s.type==='cardio'?'Cardio':'Sonstiges'}</div></div>`).join(''):'<p class="hint">Noch keine Trainingseinheiten gespeichert.</p>'}
 function sortDate(a,b){return b.date.localeCompare(a.date)||(b.created||'').localeCompare(a.created||'')}
+function sessionElapsed(){if(!sessionClock?.startedAt)return 0;const end=sessionClock.finishedAt||Date.now();const paused=sessionClock.pausedTotalMs||0;const currentPause=sessionClock.pausedAt?Math.max(0,end-sessionClock.pausedAt):0;return Math.max(0,end-sessionClock.startedAt-paused-currentPause)}
+function renderSessionClock(){const panel=el('liveClockPanel');if(!panel)return;panel.hidden=!sessionClock?.startedAt;if(panel.hidden)return;const seconds=Math.floor(sessionElapsed()/1000);el('liveClock').textContent=clockFmt(seconds);el('duration').value=Math.ceil(seconds/60);el('livePause').textContent=sessionClock.pausedAt?'Fortsetzen':'Pausieren';if(el('focusLiveClock'))el('focusLiveClock').textContent=clockFmt(seconds)}
+function startSessionClock(){sessionClock={startedAt:Date.now(),pausedAt:null,pausedTotalMs:0,finishedAt:null};renderSessionClock()}
+function toggleSessionPause(){if(!sessionClock?.startedAt)return;if(sessionClock.pausedAt){sessionClock.pausedTotalMs+=Math.max(0,Date.now()-sessionClock.pausedAt);sessionClock.pausedAt=null}else sessionClock.pausedAt=Date.now();renderSessionClock();saveDraft()}
+function recentExercise(name){const norm=x=>String(x||'').trim().toLowerCase();const candidates=db.filter(s=>s.type==='kraft').slice().sort(sortDate);for(const s of candidates){const e=(s.exercises||[]).find(e=>norm(e.name)===norm(name));if(!e)continue;const sets=(e.sets||[]).filter(x=>x.done===true&&String(x.reps??'').trim()!==''&&Number.isFinite(Number(String(x.kg).replace(',','.')))&&Number(String(x.kg).replace(',','.'))>=0&&Number(String(x.kg).replace(',','.'))<=600);if(sets.length)return sets;}return null}
+function prefillFromHistory(name,sets){const prior=recentExercise(name);if(!prior)return sets;return sets.map((st,i)=>{const ref=prior[Math.min(i,prior.length-1)];return {...st,kg:ref.kg??st.kg,reps:ref.reps??'',rir:ref.rir??''}})}
+async function archiveDraft(){clearTimeout(draftSaveHandle);draftEpoch++;const saved=await StorageV2.get('draft');if(saved?.fields){discardRecovery=saved;await StorageV2.put('discardRecovery',saved);el('restoreDiscarded').style.display='block';return true}return false}
+async function restoreDiscardedDraft(){if(hasDraft()&&!confirm('Aktuellen Entwurf durch den zuvor verworfenen ersetzen?'))return;const found=discardRecovery||await StorageV2.get('discardRecovery');if(!found?.fields){alert('Kein vorheriger Entwurf vorhanden.');return}await StorageV2.put('draft',found);draftPresent=true;resetForm(true);await restoreDraft();show('train');notify('Entwurf wiederhergestellt')}
 function resetForm(skipClear=false){
+  closeRestOverlay();
   editing=null;currentExerciseIndex=0;warmup={enabled:true,minutes:5,notes:'',done:false};
   el('formTitle').textContent='Training erfassen';el('date').value=today();el('type').value='kraft';el('title').value='';
-  el('duration').value='';el('srpe').value='';el('notes').value='';
+  el('duration').value='';el('srpe').value='';el('notes').value='';finishRpeChosen=null;finishCheckin={energy:null,muscle:null};
   for(const id of ['distance','hr','power','maxhr','intervals'])el(id).value='';
   el('sport').value='Radfahren Indoor';el('zone').value='Locker / GA1';
-  draft=[];syncWarmup();renderType();renderExercises();
+  draft=[];sessionClock=null;syncWarmup();renderType();renderExercises();renderSessionClock();
   if(!skipClear){clearTimeout(draftSaveHandle);clearDraft();restStop()}
 }
-function newTraining(){
- if(hasDraft()&&!confirm('Neues Training beginnen? Der bisherige laufende Entwurf wird verworfen.'))return;
- resetForm();saveDraft();
+async function newTraining(){
+ if(hasDraft()){if(!confirm('Neues Training beginnen? Der bisherige Entwurf bleibt über „Wiederherstellen“ verfügbar.'))return;await saveDraft();await archiveDraft()}
+ resetForm();startSessionClock();await saveDraft();
 }
-function discardTraining(){
- if(hasDraft()&&!confirm('Laufendes Training wirklich verwerfen?'))return;
- resetForm();show('home');notify('Entwurf verworfen');
+async function discardTraining(){
+ if(hasDraft()){if(!confirm('Entwurf verwerfen? Du kannst ihn danach wiederherstellen.'))return;await saveDraft();await archiveDraft()}
+ resetForm();show('home');notify('Entwurf gesichert und verworfen');
 }
-function hasDraft(){try{return !!localStorage.getItem(DRAFT_KEY)}catch{return false}}
-function clearDraft(){try{localStorage.removeItem(DRAFT_KEY)}catch{}}
+function hasDraft(){return draftPresent}
+function clearDraft(){draftEpoch++;draftPresent=false;StorageV2.put('draft',null).catch(e=>console.error('Entwurf löschen:',e))}
 function queueDraft(){clearTimeout(draftSaveHandle);draftSaveHandle=setTimeout(saveDraft,120)}
-function saveDraft(){
- const fields=['date','type','title','duration','srpe','notes','sport','distance','hr','power','maxhr','zone','intervals'];
+async function saveDraft(){
+ const epoch=draftEpoch;renderSessionClock();const fields=['date','type','title','duration','srpe','notes','sport','distance','hr','power','maxhr','zone','intervals'];
  const values={};for(const id of fields)values[id]=el(id)?.value??'';
  try{
-  localStorage.setItem(DRAFT_KEY,JSON.stringify({saved:new Date().toISOString(),fields:values,draft,editing,currentExerciseIndex,warmup}));
+  if(epoch!==draftEpoch)return false;await StorageV2.put('draft',{saved:new Date().toISOString(),fields:values,draft:structuredClone(draft),editing,currentExerciseIndex,warmup:{...warmup},finishCheckin:{...finishCheckin},sessionClock:sessionClock?{...sessionClock}:null});
+   draftPresent=true;
   el('draftStatus').textContent='✓ Training lokal zwischengespeichert';
   updateResumeCard();return true;
  }catch(e){el('draftStatus').textContent='⚠ Entwurf konnte nicht gespeichert werden';return false}
 }
-function restoreDraft(){
+async function restoreDraft(){
  try{
-  const data=JSON.parse(localStorage.getItem(DRAFT_KEY)||'null');if(!data||!data.fields)return;
+  const data=await StorageV2.get('draft');if(!data||!data.fields)return;draftPresent=true;
   editing=data.editing||null;warmup={enabled:true,minutes:5,notes:'',done:false,...(data.warmup||{})};
-  draft=Array.isArray(data.draft)?data.draft:[];currentExerciseIndex=Math.max(0,Math.min(Number(data.currentExerciseIndex)||0,draft.length-1));
+  sessionClock=data.sessionClock||null;finishCheckin={energy:null,muscle:null,...(data.finishCheckin||{})};draft=Array.isArray(data.draft)?data.draft:[];currentExerciseIndex=Math.max(0,Math.min(Number(data.currentExerciseIndex)||0,draft.length-1));
   for(const [k,v] of Object.entries(data.fields)){if(el(k))el(k).value=v}
   el('formTitle').textContent=editing?'Training bearbeiten':'Laufendes Training';
-  syncWarmup();renderType();renderExercises();
+  syncWarmup();renderType();renderExercises();renderSessionClock();
   el('draftStatus').textContent='✓ Laufendes Training wiederhergestellt';
  }catch(e){console.warn('Entwurf konnte nicht gelesen werden')}
  updateResumeCard();
@@ -112,25 +416,54 @@ function syncWarmup(){
  el('warmupDetail').hidden=!warmup.enabled;
 }
 function renderType(){el('strengthFields').hidden=el('type').value==='cardio';el('cardioFields').hidden=el('type').value!=='cardio'}
+let chosenProgram=null;
+function updateFocusHeader(){if(el('focusName'))el('focusName').textContent=el('title')?.value||'Krafttraining'}
+function closeProgramIntro(){el('programIntro').close();chosenProgram=null}
 function startTemplate(name){
- if(hasDraft()&&!confirm('Vorlage '+name+' starten und bisherigen Trainingsentwurf verwerfen?'))return;
- resetForm();el('type').value='kraft';el('title').value=name;el('duration').value=name==='Unterkörper'?75:65;
- draft=templates[name].map(x=>({name:x.name,target:x.reps,done:false,sets:Array.from({length:x.n},()=>({kg:x.kg??'',reps:'',rir:'',done:false}))}));
- currentExerciseIndex=0;renderType();renderExercises();saveDraft();show('train');notify('Vorlage geladen')
+ if(!templates[name])return;
+ chosenProgram=name;
+ el('introTitle').textContent=name+' · Deine Vorbereitung';
+ const exercises=templates[name];
+ const first=exercises[0];
+ const advice=p3Evaluate({name:first.name,target:first.reps,sets:[]},db);
+ el('introAdvice').innerHTML=`<p class="hint">${exercises.length} Übungen · zuerst: <strong>${esc(first.name)}</strong></p>
+ <div class="intro-advice"><strong>↗ ${esc(advice.title)}</strong><p>${esc(advice.detail)}</p></div>
+ <details class="intro-other"><summary>Hinweise zu allen ${exercises.length} Übungen ansehen</summary><div>${exercises.map(x=>{const a=p3Evaluate({name:x.name,target:x.reps,sets:[]},db);return `<article><strong>${esc(x.name)}</strong><div class="hint">${esc(a.title)} · ${esc(a.detail)}</div></article>`}).join('')}</div></details>`;
+ el('programIntro').showModal();
 }
-function startCardio(){
- if(hasDraft()&&!confirm('Neues Cardiotraining beginnen und Entwurf verwerfen?'))return;
- resetForm();el('type').value='cardio';el('title').value='Cardio – Grundlagenausdauer';el('duration').value=45;
- renderType();saveDraft();show('train')
+async function beginProgramIntro(){
+ const name=chosenProgram;if(!name)return;
+ if(hasDraft()){if(!confirm('Vorlage '+name+' starten? Der vorherige Entwurf wird zur Wiederherstellung gesichert.'))return;await saveDraft();await archiveDraft()}
+ closeProgramIntro();resetForm();el('type').value='kraft';el('title').value=name;
+ draft=templates[name].map(x=>({name:x.name,target:x.reps,done:false,sets:prefillFromHistory(x.name,Array.from({length:x.n},()=>({kg:x.kg??'',reps:'',rir:'',done:false})))}));
+ currentExerciseIndex=0;startSessionClock();renderType();renderExercises();await saveDraft();show('train');notify('Training gestartet')
+}
+async function startCardio(){
+ if(hasDraft()){if(!confirm('Cardio starten? Der bisherige Entwurf bleibt wiederherstellbar.'))return;await saveDraft();await archiveDraft()}
+ resetForm();el('type').value='cardio';el('title').value='Cardio – Grundlagenausdauer';
+ startSessionClock();renderType();await saveDraft();show('train')
 }
 function addExercise(){
  draft.push({name:'Neue Übung',target:'8–12',done:false,sets:[{kg:'',reps:'',rir:'',done:false}]});
  currentExerciseIndex=draft.length-1;renderExercises();saveDraft()
 }
-function addSet(i){
- draft[i].sets.push({kg:'',reps:'',rir:'',done:false});renderExercises();saveDraft()
+// UI-Auswahl bleibt bewusst getrennt von den gespeicherten Trainingsdaten.
+const activeSetByExercise=new WeakMap();
+function selectedSet(e){
+ const saved=activeSetByExercise.get(e);
+ if(Number.isInteger(saved)&&saved>=0&&saved<e.sets.length)return saved;
+ const next=e.sets.findIndex(s=>!s.done);
+ return next>=0?next:Math.max(0,e.sets.length-1);
 }
-function deleteSet(i,j){if(draft[i].sets.length<=1)return;draft[i].sets.splice(j,1);renderExercises();saveDraft()}
+function selectSet(i,j){
+ if(!draft[i]||!draft[i].sets[j])return;
+ activeSetByExercise.set(draft[i],j);
+ renderExercises();
+}
+function addSet(i){
+ draft[i].sets.push({kg:'',reps:'',rir:'',done:false});activeSetByExercise.set(draft[i],draft[i].sets.length-1);renderExercises();saveDraft()
+}
+function deleteSet(i,j){if(draft[i].sets.length<=1)return;draft[i].sets.splice(j,1);activeSetByExercise.set(draft[i],Math.min(j,draft[i].sets.length-1));renderExercises();saveDraft()}
 function deleteExercise(i){
  if(!confirm('Übung aus dieser Einheit entfernen?'))return;
  draft.splice(i,1);currentExerciseIndex=Math.min(Math.max(0,currentExerciseIndex),Math.max(0,draft.length-1));
@@ -138,21 +471,23 @@ function deleteExercise(i){
 }
 function updateExercise(i,field,value){draft[i][field]=value;queueDraft()}
 function updateSet(i,j,field,value){draft[i].sets[j][field]=value;queueDraft()}
-function switchExercise(i){currentExerciseIndex=Math.max(0,Math.min(i,draft.length-1));renderExercises();saveDraft()}
+function switchExercise(i){closeRestOverlay();currentExerciseIndex=Math.max(0,Math.min(i,draft.length-1));renderExercises();saveDraft();updateRestOverlay()}
 function moveExercise(index,dir){
  let to=index+dir;if(to<0||to>=draft.length)return;
  [draft[index],draft[to]]=[draft[to],draft[index]];
  currentExerciseIndex=to;renderExercises();saveDraft()
 }
 function toggleExerciseDone(i){
- draft[i].done=!draft[i].done;renderExercises();saveDraft()
+ const next=!draft[i].done;if(next&&draft[i].sets.some(s=>!s.done)){if(!confirm('Nicht alle Sätze sind abgeschlossen. Übung trotzdem als erledigt markieren?'))return}draft[i].done=next;renderExercises();saveDraft()
 }
-function closeSet(i,j){
+async function closeSet(i,j){
  const st=draft[i].sets[j];
  if(!st.done && !String(st.reps||'').trim()){alert('Bitte zuerst Wiederholungen beziehungsweise Zeit eintragen.');return}
- st.done=!st.done;
- if(st.done){restStart();notify('Satz abgeschlossen – Pause gestartet')}
- renderExercises();saveDraft()
+ const previous=st.done;st.done=!st.done;
+ draft[i].done=draft[i].sets.every(s=>s.done);
+ if(st.done){const next=draft[i].sets.findIndex(s=>!s.done);activeSetByExercise.set(draft[i],next>=0?next:j)}else{activeSetByExercise.set(draft[i],j)}
+ renderExercises();if(!await saveDraft()){st.done=previous;draft[i].done=draft[i].sets.every(s=>s.done);renderExercises();alert('Satz konnte nicht gesichert werden.');return}
+ if(st.done){restStart();openRestOverlay();notify('Satz gesichert – Pause gestartet')}
 }
 const alternatives=[
  {test:/bankdrücken|brustpresse|schrägbank|liegestütz/i, names:['KH-Bankdrücken neutral','Langhantel-Bankdrücken','Brustpresse Maschine','KH-Schrägbankdrücken','Liegestütze'],target:'8–12'},
@@ -179,6 +514,56 @@ function chooseAlternative(i,value){
  if(group?.target)old.target=group.target;
  renderExercises();saveDraft();notify('Übung geändert – Trainingslast neu wählen')
 }
+
+// Phase 3.1: Entscheidungshilfe, keine automatische Änderung der Satzwerte.
+// Vergleiche nur dieselbe Übung mit vollständig dokumentierten Arbeitssätzen.
+function p3Number(value){
+ const x=String(value??'').trim().replace(',','.');
+ return x!==''&&Number.isFinite(Number(x))?Number(x):null;
+}
+function p3Target(target){
+ const raw=String(target||'');
+ if(/explosiv|carry|meter|\bm\b|sek|zeit|distanz/i.test(raw))return null;
+ const ranges=[...raw.matchAll(/(\d{1,2})\s*[–-]\s*(\d{1,2})(?!\d)/g)];
+ if(ranges.length){const [_,lo,hi]=ranges[ranges.length-1];if(+lo>=1&&+hi<=30&&+hi>=+lo)return {lo:+lo,hi:+hi};}
+ // Einzelne Zielzahl nur ohne Satzanzahl-Präfix oder 'je Seite'.
+ const single=raw.trim().match(/^(\d{1,2})$/);
+ if(single&&+single[1]<=30)return {lo:+single[1],hi:+single[1]};
+ return null;
+}
+function p3Evaluate(exercise,sessions){
+ const name=String(exercise.name||'').trim().toLowerCase();
+ if(/explosiv|plyometr|carry|farmer|sprint|sprung/i.test(name))return {title:'Keine automatische Progression',detail:'Explosive Übungen und Carries werden nicht mit der Wiederholungs-Progressionsregel gesteuert.'};
+ const target=p3Target(exercise.target);
+ if(!target)return {title:'Keine automatische Progression',detail:'Für diese Übung ist kein eindeutig auswertbarer Wiederholungsbereich hinterlegt (z. B. explosive Übung, Carry oder Distanzziel).'};
+ const matched=sessions.filter(s=>s.type==='kraft').slice().sort(sortDate).flatMap(s=>(s.exercises||[]).filter(e=>String(e.name||'').trim().toLowerCase()===name).map(e=>({date:s.date,sets:e.sets||[]})));
+ if(!matched.length)return {title:'Ausgangswert sammeln',detail:'Noch keine dokumentierte Vergleichseinheit für diese Übung.'};
+ const latest=matched[0],valid=latest.sets.map(st=>({kg:p3Number(st.kg),reps:p3Number(st.reps),rir:p3Number(st.rir),done:st.done===true}));
+ const anomalous=valid.some(st=>st.kg!==null&&(st.kg<=0||st.kg>1000));
+ if(anomalous)return {title:'Daten prüfen',detail:`In der letzten Einheit (${displayDate(latest.date)}) steht eine unplausible Last. Bitte im Verlauf korrigieren; bis dahin keine Steigerungsempfehlung.`};
+ if(valid.length<2||valid.some(st=>!st.done||st.kg===null||st.reps===null||st.rir===null))return {title:'Noch keine belastbare Empfehlung',detail:`Letzte Einheit: ${displayDate(latest.date)}. Für eine Empfehlung benötigen wir mindestens zwei vollständig abgeschlossene Arbeitssätze mit Gewicht, Wiederholungen und RIR.`};
+ if(valid.some(st=>st.reps<1||st.reps>40||st.rir<0||st.rir>10))return {title:'Daten prüfen',detail:'In den letzten Satzwerten sind Wiederholungen oder RIR außerhalb eines plausiblen Bereichs.'};
+ const load=valid[0].kg;
+ if(valid.some(st=>Math.abs(st.kg-load)>.05))return {title:'Gewicht zunächst halten',detail:'Die letzte Einheit enthält verschiedene Satzlasten. Aufwärm- und Arbeitssätze sollten getrennt erfasst werden, bevor eine Progression bewertet wird.'};
+ const lastMin=Math.min(...valid.map(st=>st.reps));
+ const lastRir=Math.min(...valid.map(st=>st.rir));
+ if(lastMin<target.lo)return {title:'Gewicht halten oder anpassen',detail:`In mindestens einem Satz lagst du unter ${target.lo} Wiederholungen. Prüfe Erholung und Technik; bei wiederholter Unterschreitung kann eine kleine Reduktion sinnvoll sein.`};
+ if(lastRir<1)return {title:'Belastung nicht erhöhen',detail:'Mindestens ein Satz wurde mit RIR unter 1 protokolliert. Zunächst bei vergleichbarer Technik wiederholen und Erholung beobachten.'};
+ if(lastMin<target.hi)return {title:'Gewicht halten · Wiederholungen ausbauen',detail:`Zuletzt: ${load} kg, ${valid.map(x=>x.reps).join(' / ')} Wiederholungen. Ziel: ${target.lo}–${target.hi} pro Arbeitssatz bei etwa RIR 2–3.`};
+ if(lastRir<2)return {title:'Gewicht halten · RIR absichern',detail:'Obergrenze erreicht, aber mindestens ein Satz lag unter RIR 2. Erst mit ausreichender Wiederholungsreserve bestätigen.'};
+ const earlier=matched[1];
+ if(!earlier)return {title:'Obergrenze erreicht · einmal bestätigen',detail:`Alle Sätze der letzten Einheit (${displayDate(latest.date)}) erreichten ${target.hi} Wiederholungen mit RIR ≥ 2. Für eine vorsichtige Laststeigerung fehlt noch eine zweite vergleichbare Einheit.`};
+ const prev=earlier.sets.map(st=>({kg:p3Number(st.kg),reps:p3Number(st.reps),rir:p3Number(st.rir),done:st.done===true}));
+ const twice=prev.length===valid.length&&prev.length>=2&&prev.every(st=>st.done&&st.kg!==null&&Math.abs(st.kg-load)<.05&&st.reps!==null&&st.reps>=target.hi&&st.rir!==null&&st.rir>=2&&st.rir<=10);
+ if(!twice)return {title:'Obergrenze erreicht · bestätigen',detail:`Am ${displayDate(latest.date)} lagen alle Arbeitssätze am oberen Zielbereich mit RIR ≥ 2. Die Vergleichseinheit vom ${displayDate(earlier.date)} erfüllt noch nicht dieselben Bedingungen.`};
+ const step=load<40?'kleinen verfügbaren Hantelschritt (z. B. 1–2 kg je Kurzhantel, falls möglich)':'kleinen Geräteschritt (typisch etwa 2–5 %)';
+ return {title:'Kleine Laststeigerung prüfen',detail:`Zwei aufeinanderfolgende Einheiten (${displayDate(earlier.date)}, ${displayDate(latest.date)}) erreichten bei ${load} kg die Obergrenze ${target.hi} mit RIR ≥ 2. Nächste Einheit: ${step} erwägen und erneut im Zielbereich beginnen. Nicht automatisch ändern.`};
+}
+function p3Panel(e){
+ const advice=p3Evaluate(e,db);
+ return `<div class="progress-panel" aria-live="polite"><strong>↗ Progressionshinweis: ${esc(advice.title)}</strong><p>${esc(advice.detail)}</p><details><summary>Warum diese Empfehlung?</summary><p class="sub">Regelbasierte Double Progression. Vergleich ausschließlich gleich benannter Übungen und bestätigter, plausibler Sätze. Eine Erhöhung wird erst nach zwei vergleichbaren Einheiten an der oberen Wiederholungsgrenze mit RIR ≥ 2 vorgeschlagen. Kein automatischer Eingriff, keine individuelle medizinische Beurteilung. Vor Trainingseinheiten mit wechselnder Technik/Tempo oder Maschinen sind Werte nur eingeschränkt vergleichbar.</p></details></div>`;
+}
+
 function renderExercises(){
  const nav=el('exerciseNavigator');const area=el('exercises');if(!nav||!area)return;
  if(!draft.length){nav.innerHTML='';area.innerHTML='<div class="chart-empty">Noch keine Übungen. Starte über die Übersicht eine Vorlage oder tippe auf „+ Übung“.</div>';return}
@@ -193,26 +578,57 @@ function renderExercises(){
  area.innerHTML=`<div class="workout-card">
  <div class="row space"><strong>${esc(e.name)}</strong><button onclick="toggleExerciseDone(${i})" class="${e.done?'':'primary'}">${e.done?'✓ Erledigt – zurücksetzen':'Übung erledigt ✓'}</button></div>
  <p class="hint">Ziel: ${esc(e.target||'Individuell')} · Sätze werden erst bei Bestätigung abgeschlossen</p>
- <label>Alternative Übung am gleichen Trainingsplatz</label>
+  <p class="setlast">${recentExercise(e.name)?'Letzte bestätigte Sätze als Vorschlag übernommen · bitte Ist-Werte prüfen':'Noch keine bestätigten Vergleichswerte'}</p>${p3Panel(e)}<details class="advanced-controls"><summary>Übung bearbeiten / Alternative auswählen</summary><label>Alternative Übung am gleichen Trainingsplatz</label>
  <select onchange="chooseAlternative(${i},this.value)">${opts.map(n=>`<option value="${esc(n)}" ${n===e.name?'selected':''}>${esc(n)}</option>`).join('')}<option value="__custom">+ Andere Übung eingeben …</option></select>
  <label>Übungsname (manuell)</label><input value="${esc(e.name)}" oninput="updateExercise(${i},'name',this.value)">
  <label>Zielwiederholungen / Hinweis</label><input value="${esc(e.target||'')}" oninput="updateExercise(${i},'target',this.value)">
- <div class="row" style="margin:12px 0"><button onclick="moveExercise(${i},-1)" ${i===0?'disabled':''}>↑ Früher</button><button onclick="moveExercise(${i},1)" ${i===draft.length-1?'disabled':''}>↓ Später</button><button class="danger" onclick="deleteExercise(${i})">Entfernen</button></div>
- ${e.sets.map((st,j)=>`<div class="set-state">
- <strong class="${st.done?'set-complete':''}">Satz ${j+1} ${st.done?'✓':''}</strong><button class="${st.done?'':'primary'}" onclick="closeSet(${i},${j})">${st.done?'Rückgängig':'Satz abschließen'}</button></div>
+ <div class="row" style="margin:12px 0"><button onclick="moveExercise(${i},-1)" ${i===0?'disabled':''}>↑ Früher</button><button onclick="moveExercise(${i},1)" ${i===draft.length-1?'disabled':''}>↓ Später</button><button class="danger" onclick="deleteExercise(${i})">Entfernen</button></div></details>
+ <div class="set-picker" role="group" aria-label="Satz auswählen">
+ ${e.sets.map((st,j)=>`<button type="button" class="set-choice ${selectedSet(e)===j?'chosen':''} ${st.done?'completed':''}" aria-pressed="${selectedSet(e)===j}" onclick="selectSet(${i},${j})">Satz ${j+1}${st.done?' ✓':''}<span>${st.done?`${esc(st.kg||'–')} kg × ${esc(st.reps||'–')}`:j===selectedSet(e)?'Aktuell':'Offen'}</span></button>`).join('')}
+ </div>
+ ${(()=>{const j=selectedSet(e),st=e.sets[j];return `<div class="current-set-editor">
+ <div class="set-state"><strong class="${st.done?'set-complete':''}">Satz ${j+1} ${st.done?'✓ Abgeschlossen':'– jetzt bearbeiten'}</strong><button class="${st.done?'':'primary'}" onclick="closeSet(${i},${j})">${st.done?'Abschluss zurücknehmen':'Satz abschließen'}</button></div>
  <div class="setline"><div><label>Gewicht (kg)</label><input inputmode="decimal" placeholder="kg" value="${esc(st.kg)}" oninput="updateSet(${i},${j},'kg',this.value)"></div>
- <div><label>Wdh./Zeit</label><input placeholder="z. B. 10" value="${esc(st.reps)}" oninput="updateSet(${i},${j},'reps',this.value)"></div>
+ <div><label>${/farmer carry/i.test(e.name)?'Distanz (m)':'Wdh./Zeit'}</label><input placeholder="z. B. 10" value="${esc(st.reps)}" oninput="updateSet(${i},${j},'reps',this.value)"></div>
  <div><label>RIR</label><input inputmode="decimal" placeholder="2" value="${esc(st.rir)}" oninput="updateSet(${i},${j},'rir',this.value)"></div></div>
- <div style="text-align:right;margin:0 0 12px"><button ${e.sets.length<=1?'disabled':''} onclick="deleteSet(${i},${j})" aria-label="Satz löschen" style="padding:6px 10px">Satz entfernen</button></div>`).join('')}
+ <div class="row space set-actions"><span class="hint">Alle Satzwerte bleiben jederzeit bearbeitbar.</span><button ${e.sets.length<=1?'disabled':''} onclick="deleteSet(${i},${j})">Satz entfernen</button></div>
+ </div>`})()}
+ <div class="next-exercise-footer"><button type="button" class="primary full" onclick="switchExercise(${Math.min(draft.length-1,i+1)})" ${i===draft.length-1?'disabled':''}>${i===draft.length-1?'Letzte Übung erreicht':'Nächste Übung →'}</button></div>
  <button onclick="addSet(${i})" class="full">+ Satz ergänzen</button>
  <p class="hint" style="margin-top:10px">Bei Kurzhanteln das Gewicht je Hand eintragen. Alternative Übungen haben zunächst keine vorgegebene Trainingslast.</p>
  </div>`;
 }
+function openRestOverlay(){
+ const d=el('restBreakDialog');
+ if(!d||!draft.length||el('type').value==='cardio')return;
+ updateRestOverlay();
+ if(!d.open)d.showModal();
+}
+function closeRestOverlay(){const d=el('restBreakDialog');if(d?.open)d.close()}
+function restOverlayContinue(){
+ const e=draft[currentExerciseIndex];
+ if(e && e.sets?.length && e.sets.every(st=>st.done) && currentExerciseIndex<draft.length-1){
+  switchExercise(currentExerciseIndex+1);
+ }else{
+  closeRestOverlay();
+ }
+}
+function updateRestOverlay(){
+ const display=clockFmt(rest.remaining), running=rest.running;
+ const clk=el('restBreakClock');if(clk){clk.textContent=display;clk.classList.toggle('finished',rest.remaining<=0);}
+ const status=el('restBreakStatus');if(status)status.textContent=rest.remaining<=0?'Pause beendet – du kannst weitermachen.':running?'Die Satzpause läuft. Du kannst jederzeit zur Übung wechseln.':'Pausiert – die Zeit läuft nicht weiter.';
+ const toggle=el('restBreakToggle');if(toggle)toggle.textContent=running?'Pausieren':rest.remaining>0?'Fortsetzen':'Neu starten';
+ const e=draft[currentExerciseIndex];
+ const next=el('restBreakNext');if(next){const final=e?.sets?.length&&e.sets.every(st=>st.done);next.textContent=final&&currentExerciseIndex<draft.length-1?'Nächste Übung →':final?'Zur Übung / Training abschließen':'Weiter zum Satz →';}
+ const chip=el('restInlineIndicator');
+ if(chip){chip.hidden=!(draft.length && el('type').value==='kraft' && rest.remaining>0 && (rest.running||rest.remaining<rest.duration));}
+ const mini=el('restInlineClock');if(mini)mini.textContent=display;
+}
 function clockFmt(sec){let x=Math.max(0,Math.ceil(sec));return String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0')}
-function timerSave(){try{localStorage.setItem(REST_KEY,JSON.stringify(rest))}catch{}}
+function timerSave(){StorageV2.put('rest',{...rest}).catch(e=>console.error('Timer speichern:',e))}
 function restTick(){
  if(rest.running){rest.remaining=Math.max(0,Math.ceil((rest.endAt-Date.now())/1000));if(rest.remaining<=0){rest.running=false;rest.endAt=0;timerSave()}}
- if(el('restCount')){el('restCount').textContent=clockFmt(rest.remaining);el('restCount').classList.toggle('done',rest.remaining===0);el('restState').textContent=rest.running?'Läuft':rest.remaining===0?'Pause beendet':rest.remaining<rest.duration?'Pausiert':'Bereit';el('restToggleBtn').textContent=rest.running?'Pause':'Weiter';}
+ if(el('restCount')){el('restCount').textContent=clockFmt(rest.remaining);el('restCount').classList.toggle('done',rest.remaining===0);el('restState').textContent=rest.running?'Läuft':rest.remaining===0?'Pause beendet':rest.remaining<rest.duration?'Pausiert':'Bereit';el('restToggleBtn').textContent=rest.running?'Pause':'Weiter';el('restQuickBtn').textContent=rest.running?'Pausieren':rest.remaining===0?'Neu starten':rest.remaining<rest.duration?'Weiter':'Start';if(el('focusRest'))el('focusRest').textContent=clockFmt(rest.remaining);}updateRestOverlay();
 }
 function changeRestLength(v){
  const n=Math.min(900,Math.max(15,Math.round(Number(v)||120)));
@@ -220,22 +636,120 @@ function changeRestLength(v){
 }
 function restStart(){rest.duration=Number(el('restSeconds').value)||120;rest.remaining=rest.duration;rest.running=true;rest.endAt=Date.now()+rest.duration*1000;timerSave();restTick()}
 function restToggle(){
+ if(!rest.running && rest.remaining<=0){restStart();return}
  restTick();if(rest.running){rest.running=false;rest.endAt=0}else if(rest.remaining>0){rest.running=true;rest.endAt=Date.now()+rest.remaining*1000}
  timerSave();restTick()
 }
 function restStop(){rest.running=false;rest.endAt=0;rest.remaining=rest.duration;timerSave();restTick()}
-function restoreRest(){
- try{const prior=JSON.parse(localStorage.getItem(REST_KEY)||'null');if(prior&&Number.isFinite(prior.duration)){rest={duration:Math.min(900,Math.max(15,prior.duration)),remaining:prior.remaining||0,endAt:prior.endAt||0,running:!!prior.running};}}catch{}
- el('restSeconds').value=rest.duration;restTick();setInterval(restTick,1000);
+async function restoreRest(){
+ try{const prior=await StorageV2.get('rest');if(prior&&Number.isFinite(prior.duration)){rest={duration:Math.min(900,Math.max(15,prior.duration)),remaining:prior.remaining||0,endAt:prior.endAt||0,running:!!prior.running};}}catch{}
+ el('restSeconds').value=rest.duration;restTick();renderSessionClock();setInterval(()=>{restTick();renderSessionClock()},1000);
  document.addEventListener('visibilitychange',restTick)
 }
 function num(id){const x=el(id).value.trim();return x===''?null:Number(x)}
-function saveSession(){const type=el('type').value,title=el('title').value.trim(),date=el('date').value;if(!title||!date){alert('Bitte Titel und Datum eingeben.');return}const previous=editing?db.find(s=>s.id===editing):null;const s={id:editing||String(Date.now())+Math.random().toString(36).slice(2,7),created:previous?.created||new Date().toISOString(),date,type,title,duration:num('duration'),srpe:num('srpe'),notes:el('notes').value.trim(),warmup:{...warmup},exercises:type==='cardio'?[]:JSON.parse(JSON.stringify(draft)),cardio:type==='cardio'?{sport:el('sport').value,distance:num('distance'),hr:num('hr'),power:num('power'),maxhr:num('maxhr'),zone:el('zone').value,intervals:el('intervals').value.trim()}:null,...(previous?.garmin?{garmin:previous.garmin}:{}),...(previous?.source?{source:previous.source}:{})};if(s.duration!==null&&(s.duration<0||s.duration>1440)){alert('Bitte gültige Dauer eingeben.');return}if(s.srpe!==null&&(s.srpe<0||s.srpe>10)){alert('RPE muss zwischen 0 und 10 liegen.');return}if(editing){db=db.map(x=>x.id===editing?s:x)}else db.push(s);if(!persist())return;resetForm();show('logs');notify('Training gespeichert')}
-function renderLogs(){let f=el('filter').value,arr=db.filter(s=>f==='all'||s.type===f).sort(sortDate);el('logItems').innerHTML=arr.length?arr.map(s=>`<div class="history"><div class="row space"><b>${esc(s.title)}</b><span class="muted" style="font-size:12px">${esc(s.date)}</span></div><div class="hint">${s.type==='cardio'?esc(s.cardio?.sport||'Cardio'):'Kraft / Athletik'} · ${s.duration??'–'} Min. · RPE ${s.srpe??'–'}</div>${s.garmin?`<div class="tag source">Garmin ✓ · Ø HF ${s.garmin.averageHR??'–'} · Max. HF ${s.garmin.maxHR??'–'} · TE aerob ${s.garmin.aerobicTrainingEffect!=null?Number(s.garmin.aerobicTrainingEffect).toFixed(1).replace('.',','):'–'}</div>`:''}${s.type==='cardio'?`<div class="tag">${esc(s.cardio?.zone)} · ${s.cardio?.distance!=null?pretty(s.cardio.distance,2)+' km · ':''}${s.cardio?.hr!=null?pretty(s.cardio.hr,0)+' bpm':''}${s.cardio?.power!=null?' · '+pretty(s.cardio.power,0)+' W':''}</div>`:`<div class="hint" style="margin-top:6px">${(s.exercises||[]).map(e=>esc(e.name)+' ('+e.sets.length+' Sätze)').join(' · ')}</div>`}${s.notes?`<p class="hint">${esc(s.notes)}</p>`:''}<div class="row" style="margin-top:10px"><button onclick="editSession('${s.id}')">Bearbeiten</button><button class="danger" onclick="removeSession('${s.id}')">Löschen</button></div></div>`).join(''):'<p class="hint">Für diesen Filter gibt es noch keine Einträge.</p>'}
-function editSession(id){const s=db.find(x=>x.id===id);if(!s)return;resetForm();editing=id;el('formTitle').textContent='Training bearbeiten';for(const k of ['date','type','title','duration','srpe','notes'])el(k).value=s[k]??'';draft=JSON.parse(JSON.stringify(s.exercises||[]));warmup={enabled:true,minutes:5,notes:'',done:false,...(s.warmup||{})};currentExerciseIndex=0;syncWarmup();if(s.cardio){for(const [k,v] of Object.entries(s.cardio)){if(el(k))el(k).value=v??''}}renderType();renderExercises();saveDraft();show('train')}
-function removeSession(id){if(!confirm('Diese Trainingseinheit endgültig löschen?'))return;db=db.filter(s=>s.id!==id);persist();renderLogs();notify('Eintrag gelöscht')}
-function exportData(){const payload={app:'Athletik2027',version:2,exported:new Date().toISOString(),sessions:db,healthMarkers:healthMarkers};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`athletik360-backup-${today()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
-async function importData(ev){let file=ev.target.files?.[0];if(!file)return;try{let j=JSON.parse(await file.text());if(j.app!=='Athletik2027'||!Array.isArray(j.sessions)||!j.sessions.every(s=>typeof s.id==='string'&&typeof s.date==='string'&&typeof s.title==='string'))throw Error('Ungültiges Backup');if(!confirm(`${j.sessions.length} Einträge importieren? Deine jetzigen ${db.length} Einträge werden ersetzt.`))return;db=j.sessions;if(!persist())return;if(Array.isArray(j.healthMarkers)){healthMarkers=j.healthMarkers.filter(m=>/^\d{4}-\d\d-\d\d$/.test(m.date||''));saveMarkers()}show('home');notify('Backup importiert')}catch(e){alert('Import fehlgeschlagen: '+e.message)}finally{ev.target.value=''}}
+
+function finishIssues(){
+ const issues=[];
+ if(el('type').value!=='cardio'){
+  let incomplete=0,implausible=0,notDone=0;
+  for(const e of draft||[])for(const st of (e.sets||[])){
+   const kg=String(st.kg??'').trim(), reps=String(st.reps??'').trim(), rir=String(st.rir??'').trim();
+   if(!st.done){notDone++;continue}
+   if(!reps||!kg||!rir)incomplete++;
+   if((kg!==''&&(!Number.isFinite(Number(kg))||Number(kg)<0||Number(kg)>600))||
+      (rir!==''&&(!Number.isFinite(Number(rir))||Number(rir)<0||Number(rir)>10))||
+      (/^\d+(?:[.,]\d+)?$/.test(reps)&&Number(reps.replace(',','.'))>150))implausible++;
+  }
+  if(incomplete)issues.push(`${incomplete} abgeschlossene Sätze mit fehlenden Angaben`);
+  if(implausible)issues.push(`${implausible} Sätze mit auffälligen Zahlen (z. B. Last, RIR oder Wiederholungen)`);
+  if(notDone)issues.push(`${notDone} noch nicht abgeschlossene Sätze (werden nicht als Arbeitssätze gezählt)`);
+ }
+ if(!el('srpe').value.trim())issues.push('Session-RPE fehlt – die subjektive Trainingslast bleibt unbekannt');
+ return issues;
+}
+function chooseFinishRpe(value){finishRpeChosen=value;el('srpe').value=value;drawFinishRpe();refreshFinishQuality();queueDraft()}
+function drawFinishRpe(){
+ const node=el('finishRpeChoices');if(!node)return;
+ node.innerHTML=Array.from({length:11},(_,i)=>`<button type="button" class="finish-choice ${Number(el('srpe').value)===i&&el('srpe').value!==''?'selected':''}" onclick="chooseFinishRpe(${i})">${i}</button>`).join('');
+ const value=el('srpe').value;
+ el('finishRpeExplain').textContent=value===''?'Keine Bewertung gewählt.':Number(value)<=2?'Sehr leicht':Number(value)<=4?'Leicht bis moderat':Number(value)<=6?'Moderat bis anstrengend':Number(value)<=8?'Sehr anstrengend':'Extrem anstrengend';
+}
+function refreshFinishQuality(){
+ const issues=finishIssues(),q=el('finishQuality'),ack=el('finishAcknowledged');
+ q.classList.toggle('good',!issues.length);
+ q.innerHTML=issues.length?`<b>Bitte vor dem Speichern prüfen</b><ul>${issues.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><span>Bei Carrys, Intervallen und Sonderübungen können andere Wiederholungsangaben sinnvoll sein. Unvollständige Daten bleiben gekennzeichnet.</span>`:'<b>✓ Keine offensichtlichen Datenprobleme erkannt.</b><div>Hinweis: Eine Plausibilitätsprüfung ersetzt keine fachliche Bewertung.</div>';
+ ack.parentElement.style.display=issues.length?'flex':'none';
+ el('finishConfirm').disabled=issues.length&&!ack.checked;
+}
+function saveSession(){
+ const dialog=el('finishDialog');const title=el('title').value.trim();
+ if(!title||!el('date').value){el('sessionDetails').open=true;alert('Bitte zuerst Name und Datum der Einheit ergänzen.');return}
+ el('finishName').textContent=title;
+ el('finishTime').textContent=(sessionClock?.startedAt?Math.ceil(sessionElapsed()/60000):num('duration')??0)+' Min.';
+ el('finishSets').textContent=draft.reduce((n,e)=>n+(e.sets||[]).filter(st=>st.done).length,0)+' abgeschlossene Sätze';
+ el('finishEnergy').value=finishCheckin.energy??'';el('finishMuscle').value=finishCheckin.muscle??'';
+ el('finishAcknowledged').checked=false;drawFinishRpe();refreshFinishQuality();dialog.showModal();
+}
+function closeFinish(){el('finishDialog').close()}
+async function confirmFinish(){
+ finishCheckin={energy:el('finishEnergy').value===''?null:Number(el('finishEnergy').value),muscle:el('finishMuscle').value===''?null:Number(el('finishMuscle').value)};
+ if(finishIssues().length&&!el('finishAcknowledged').checked){refreshFinishQuality();return}
+ closeFinish();await commitSession();
+}
+
+async function commitSession(){const type=el('type').value,title=el('title').value.trim(),date=el('date').value;if(!title||!date){alert('Bitte Titel und Datum eingeben.');return}const previous=editing?db.find(s=>s.id===editing):null;const s={id:editing||String(Date.now())+Math.random().toString(36).slice(2,7),created:previous?.created||new Date().toISOString(),date,type,title,duration:sessionClock?.startedAt?Math.ceil(sessionElapsed()/60000):num('duration'),srpe:num('srpe'),checkin:{...finishCheckin},notes:el('notes').value.trim(),warmup:{...warmup},exercises:type==='cardio'?[]:JSON.parse(JSON.stringify(draft)),cardio:type==='cardio'?{sport:el('sport').value,distance:num('distance'),hr:num('hr'),power:num('power'),maxhr:num('maxhr'),zone:el('zone').value,intervals:el('intervals').value.trim()}:null,...(previous?.garmin?{garmin:previous.garmin}:{}),...(previous?.source?{source:previous.source}:{})};if(s.duration!==null&&(s.duration<0||s.duration>1440)){alert('Bitte gültige Dauer eingeben.');return}if(s.srpe!==null&&(s.srpe<0||s.srpe>10)){alert('RPE muss zwischen 0 und 10 liegen.');return}const prior=db;if(editing){db=db.map(x=>x.id===editing?s:x)}else db=[...db,s];if(!await persist()){db=prior;return;}resetForm();show('logs');notify('Training gespeichert')}
+function validCompletedSet(st){return st?.done===true}
+function setValueText(st){
+ const w=st?.weight;const reps=st?.reps??st?.repetitions??st?.repsTime;
+ const rir=st?.rir;
+ const bits=[];
+ if(w!==null&&w!==undefined&&String(w).trim()!=='')bits.push(`${esc(w)} kg`);
+ if(reps!==null&&reps!==undefined&&String(reps).trim()!=='')bits.push(`× ${esc(reps)}`);
+ if(rir!==null&&rir!==undefined&&String(rir).trim()!=='')bits.push(`RIR ${esc(rir)}`);
+ return bits.length?bits.join(' · '):'Keine Satzwerte';
+}
+function historyCheckinText(s){
+ const c=s.checkin||{};
+ const hasE=Number.isInteger(Number(c.energy))&&c.energy!==null&&c.energy!==undefined&&c.energy!==''&&Number(c.energy)>=1&&Number(c.energy)<=5;
+ const hasM=Number.isInteger(Number(c.muscle))&&c.muscle!==null&&c.muscle!==undefined&&c.muscle!==''&&Number(c.muscle)>=1&&Number(c.muscle)<=5;
+ return {hasE,hasM,energy:c.energy,muscle:c.muscle};
+}
+function historySetSummary(s){
+ const sets=(s.exercises||[]).flatMap(e=>e.sets||[]);
+ const completed=sets.filter(validCompletedSet).length;
+ return {completed,open:sets.length-completed};
+}
+function renderLogs(){
+ const f=el('filter').value,arr=db.filter(s=>f==='all'||s.type===f).sort(sortDate);
+ el('logItems').innerHTML=arr.length?arr.map(s=>{
+  const isCardio=s.type==='cardio',counts=historySetSummary(s),c=historyCheckinText(s);
+  const chips=[`<span class="history-chip">${esc(s.duration??'–')} Min.</span>`,`<span class="history-chip">RPE ${esc(s.srpe??'–')}</span>`];
+  if(c.hasE)chips.push(`<span class="history-chip">Energie ${esc(c.energy)}/5</span>`);
+  if(c.hasM)chips.push(`<span class="history-chip">Ermüdung ${esc(c.muscle)}/5</span>`);
+  if(!isCardio&&(s.exercises||[]).length){
+   chips.push(`<span class="history-chip neutral">${counts.completed} abgeschlossene ${counts.completed===1?'Satz':'Sätze'}</span>`);
+   if(counts.open)chips.push(`<span class="history-chip warn">${counts.open} offen</span>`);
+  }
+  const card=isCardio?`<p class="hint">${esc(s.cardio?.sport||'Cardio')} · ${esc(s.cardio?.zone||'')}${s.cardio?.distance!=null?' · '+esc(s.cardio.distance)+' km':''}</p>`:'';
+  const exercises=isCardio?'':(s.exercises||[]).map(e=>{
+   const sets=e.sets||[],done=sets.filter(validCompletedSet).length;
+   return `<div class="history-exercise"><strong>${esc(e.name||'Übung')}</strong><div class="hint">${done} von ${sets.length} Sätzen abgeschlossen</div>${sets.map((st,i)=>`<div class="history-set ${validCompletedSet(st)?'done':'pending'}">${validCompletedSet(st)?'✓':'○'} Satz ${i+1}: ${setValueText(st)}${validCompletedSet(st)?'':' · offen'}</div>`).join('')||'<div class="history-empty">Keine Sätze dokumentiert</div>'}</div>`;
+  }).join('');
+  const garmin=s.garmin?`<p class="hint">Garmin · Ø HF ${esc(s.garmin.averageHR??'–')} · Max. HF ${esc(s.garmin.maxHR??'–')}</p>`:'';
+  const checkinInfo=(c.hasE||c.hasM)?`<p class="hint">Check-in nach dem Training: ${c.hasE?'Energie '+esc(c.energy)+'/5':'Energie nicht angegeben'} · ${c.hasM?'Ermüdung '+esc(c.muscle)+'/5':'Ermüdung nicht angegeben'}</p>`:'';
+  return `<article class="history"><div class="history-card-header"><span class="history-title">${esc(s.title)}</span><span class="history-date">${esc(displayDate(s.date))}</span></div><div class="hint">${isCardio?'Ausdauer':s.type==='kraft'?'Kraft / Athletik':'Sonstige Einheit'}</div><div class="history-chips">${chips.join('')}</div><details class="history-more"><summary>Trainingsdetails anzeigen</summary><div class="history-inner">${checkinInfo}${card}${garmin}${exercises}${s.notes?`<p class="hint history-note">${esc(s.notes)}</p>`:''}</div></details><div class="row history-actions"><button onclick="editSession('${s.id}')">Bearbeiten</button><button class="danger" onclick="removeSession('${s.id}')">Löschen</button></div></article>`;
+ }).join(''):'<p class="hint">Für diesen Filter gibt es noch keine Einträge.</p>';
+}
+function editSession(id){const s=db.find(x=>x.id===id);if(!s)return;resetForm();editing=id;el('formTitle').textContent='Training bearbeiten';for(const k of ['date','type','title','duration','srpe','notes'])el(k).value=s[k]??'';draft=JSON.parse(JSON.stringify(s.exercises||[]));finishCheckin={energy:null,muscle:null,...(s.checkin||{})};sessionClock=null;warmup={enabled:true,minutes:5,notes:'',done:false,...(s.warmup||{})};currentExerciseIndex=0;syncWarmup();if(s.cardio){for(const [k,v] of Object.entries(s.cardio)){if(el(k))el(k).value=v??''}}renderType();renderExercises();saveDraft();show('train')}
+async function removeSession(id){if(!confirm('Diese Trainingseinheit endgültig löschen?'))return;const prior=db;db=db.filter(s=>s.id!==id);if(!await persist()){db=prior;return;}renderLogs();notify('Eintrag gelöscht')}
+function exportData(){const payload={app:'Athletik2027',version:2,exported:new Date().toISOString(),sessions:db,healthMarkers:healthMarkers,readinessEntries:readinessEntries,deloadPlan:deloadPlan};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`athletik360-backup-${today()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+async function importData(ev){let file=ev.target.files?.[0];if(!file)return;try{let j=JSON.parse(await file.text());if(j.app!=='Athletik2027'||!Array.isArray(j.sessions)||!j.sessions.every(s=>typeof s.id==='string'&&typeof s.date==='string'&&typeof s.title==='string'))throw Error('Ungültiges Backup');if(!confirm(`${j.sessions.length} Einträge importieren? Deine jetzigen ${db.length} Einträge werden ersetzt.`))return;
+ await StorageV2.snapshot('pre-import',{sessions:db,markers:healthMarkers,readinessEntries,deloadPlan});
+ const nextMarkers=Array.isArray(j.healthMarkers)?j.healthMarkers.filter(m=>/^\d{4}-\d\d-\d\d$/.test(m.date||'')):healthMarkers;
+ const incomingReadiness=Array.isArray(j.readinessEntries)?j.readinessEntries.filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x?.date||'')):readinessEntries;
+ const incomingDeload=j.deloadPlan&&typeof j.deloadPlan==='object'?{...deloadPlan,...j.deloadPlan}:deloadPlan;
+ await StorageV2.putMany({sessions:j.sessions,markers:nextMarkers,readiness:incomingReadiness,deloadPlan:incomingDeload});
+ db=j.sessions;healthMarkers=nextMarkers;readinessEntries=incomingReadiness;deloadPlan=incomingDeload;show('home');notify('Backup importiert')}catch(e){alert('Import fehlgeschlagen: '+e.message)}finally{ev.target.value=''}}
 
 // Garmin-JSON-Import: Dateien werden ausschließlich im Browser des Nutzers verarbeitet.
 let garminDraft=[];
@@ -308,13 +822,13 @@ function garminMatches(item){
 function renderGarminItems(){
  el('garminItems').innerHTML=garminDraft.map((item,i)=>{
   const s=item.session,g=s.garmin,matches=garminMatches(item);
-  return `<div class="import-item"><div class="row"><input id="gcheck-${i}" type="checkbox" ${item.selected?'checked':''} ${item.existing?'disabled':''} onchange="toggleGarmin(${i},this.checked)" aria-label="Aktivität ${i+1} auswählen"><div style="flex:1;min-width:0"><label for="gcheck-${i}" style="margin:0;font-weight:650;font-size:14px;color:var(--text)">${esc(s.title)} ${item.existing?'· bereits importiert':''}</label><div class="hint">${esc(s.date)} · ${s.duration??'–'} Min. · ${esc(g.activityType)} · Ø HF ${g.averageHR??'–'}</div>${!item.existing&&matches.length?`<label for="gmatch-${i}">Ggf. vorhandener Einheit zuordnen</label><select id="gmatch-${i}" onchange="setGarminMatch(${i},this.value)"><option value="">Als neue Aktivität hinzufügen</option>${matches.map(m=>`<option value="${esc(m.id)}" ${item.matchId===m.id?'selected':''}>Mit „${esc(m.title)}“ vom ${esc(m.date)} verknüpfen</option>`).join('')}</select>`:''}</div></div></div>`
+  return `<div class="import-item"><div class="row"><input id="gcheck-${i}" type="checkbox" ${item.selected?'checked':''} ${item.existing?'disabled':''} onchange="toggleGarmin(${i},this.checked)" aria-label="Aktivität ${i+1} auswählen"><div style="flex:1;min-width:0"><label for="gcheck-${i}" style="margin:0;font-weight:650;font-size:14px;color:var(--text)">${esc(s.title)} ${item.existing?'· bereits importiert':''}</label><div class="hint">${esc(displayDate(s.date))} · ${s.duration??'–'} Min. · ${esc(g.activityType)} · Ø HF ${g.averageHR??'–'}</div>${!item.existing&&matches.length?`<label for="gmatch-${i}">Ggf. vorhandener Einheit zuordnen</label><select id="gmatch-${i}" onchange="setGarminMatch(${i},this.value)"><option value="">Als neue Aktivität hinzufügen</option>${matches.map(m=>`<option value="${esc(m.id)}" ${item.matchId===m.id?'selected':''}>Mit „${esc(m.title)}“ vom ${esc(displayDate(m.date))} verknüpfen</option>`).join('')}</select>`:''}</div></div></div>`
  }).join('')||'<p class="hint">Keine Aktivitäten in dieser Datei.</p>';
 }
 function toggleGarmin(i,val){if(garminDraft[i]&&!garminDraft[i].existing)garminDraft[i].selected=Boolean(val)}
 function setGarminMatch(i,val){if(garminDraft[i])garminDraft[i].matchId=val}
 function selectGarminAll(value){for(const item of garminDraft){item.selected=!item.existing&&Boolean(value)}renderGarminItems()}
-function importSelectedGarmin(){
+async function importSelectedGarmin(){
  const picked=garminDraft.filter(x=>x.selected&&!x.existing);
  if(!picked.length){alert('Bitte zuerst mindestens eine neue Aktivität auswählen.');return}
  const targets=picked.filter(x=>x.matchId).map(x=>x.matchId);
@@ -337,7 +851,7 @@ function importSelectedGarmin(){
   }else{newDb.push(src);inserted++}
  }
  db=newDb;
- if(!persist()){db=previous;return}
+ if(!await persist()){db=previous;return}
  const result=`Garmin-Import: ${inserted} neu, ${linked} verknüpft${skipped?', '+skipped+' übersprungen':''}.`;
  garminDraft=[];el('garminFile').value='';el('garminPreview').hidden=true;
  show('logs');notify('Garmin-Daten gespeichert');alert(result);
@@ -346,15 +860,15 @@ function importSelectedGarmin(){
 // Leistungsanalyse v1.2: vollständige Offline-Berechnung aus bereits lokal gespeicherten Einheiten.
 const MARKER_KEY='athletik360_healthmarkers_v1';
 let healthMarkers=readMarkers();
-function readMarkers(){try{const v=JSON.parse(localStorage.getItem(MARKER_KEY));return Array.isArray(v)?v:[]}catch{return []}}
-function saveMarkers(){try{localStorage.setItem(MARKER_KEY,JSON.stringify(healthMarkers));return true}catch{alert('Körperwerte konnten nicht gespeichert werden.');return false}}
+function readMarkers(){return []}
+async function saveMarkers(){try{await StorageV2.put('markers',healthMarkers);return true}catch{alert('Körperwerte konnten nicht gespeichert werden.');return false}}
 function numericValue(x){if(x===null||x===undefined||x==='')return null;const n=Number(String(x).trim().replace(',','.'));return Number.isFinite(n)?n:null}
 function pretty(n,d=1){return n===null||n===undefined||!Number.isFinite(Number(n))?'–':Number(n).toLocaleString('de-DE',{maximumFractionDigits:d})}
 function monday(iso){const d=new Date(iso+'T12:00:00');if(!Number.isFinite(d.getTime()))return iso;d.setDate(d.getDate()-(d.getDay()+6)%7);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 function analysisWithin(date){const v=el('analysisPeriod')?.value||'all';if(v==='all')return true;const d=new Date(date+'T12:00:00').getTime();const since=Date.now()-Number(v)*86400000;return d>=since&&d<=Date.now()+86400000}
 function exerciseData(){const out=[];db.filter(s=>s.type==='kraft'&&analysisWithin(s.date)).forEach(session=>{(session.exercises||[]).forEach(e=>{const name=(e.name||'').trim();if(!name)return;let maxWeight=null,maxE1RM=null,volume=0,valid=0;for(const set of (e.sets||[])){
  const kg=numericValue(set.kg),reps=numericValue(set.reps);
- if(kg===null||kg<0||reps===null||!Number.isInteger(reps)||reps<1||reps>50)continue;
+ if(set.done!==true||kg===null||kg<0||kg>600||reps===null||!Number.isInteger(reps)||reps<1||reps>50)continue;
  valid++;maxWeight=Math.max(maxWeight??0,kg);volume+=kg*reps;
  if(reps<=10&&kg>0)maxE1RM=Math.max(maxE1RM??0,kg*(1+reps/30));
  }
@@ -375,10 +889,10 @@ function svgPlot(pts,unit,{bars=false,color='#a8e0a5',zero=false}={}){
  const x=i=>L+(pts.length===1?(W-L-R)/2:i*(W-L-R)/(pts.length-1));
  let markup=`<svg class="perf-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Zeitverlauf mit ${pts.length} Messpunkten in ${esc(unit)}">`;
  for(let i=0;i<4;i++){const yy=T+i*(H-T-B)/3,val=ymax-i*(ymax-ymin)/3;markup+=`<line x1="${L}" y1="${yy.toFixed(1)}" x2="${W-R}" y2="${yy.toFixed(1)}" stroke="#3b594b" stroke-width="1" opacity=".45"/><text x="${L-8}" y="${(yy+4).toFixed(1)}" fill="#a1b7ac" text-anchor="end" font-size="12">${esc(pretty(val,1))}</text>`}
- if(bars){const band=(W-L-R)/Math.max(pts.length,1),width=Math.min(50,band*.68);pts.forEach((p,i)=>{const xx=L+(i+.5)*band-width/2,yy=y(p.value),hh=Math.max(1,y(ymin)-yy);markup+=`<rect x="${xx.toFixed(1)}" y="${yy.toFixed(1)}" width="${width.toFixed(1)}" height="${hh.toFixed(1)}" rx="5" fill="${color}"><title>${esc(p.date)}: ${esc(pretty(p.value,1))} ${esc(unit)}</title></rect>`})}
- else{const line=pts.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)} ${y(p.value).toFixed(1)}`).join(' ');markup+=`<path d="${line}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;pts.forEach((p,i)=>{markup+=`<circle cx="${x(i).toFixed(1)}" cy="${y(p.value).toFixed(1)}" r="${pts.length>25?3:5}" fill="${color}" stroke="#10221e" stroke-width="2"><title>${esc(p.date)}: ${esc(pretty(p.value,1))} ${esc(unit)}</title></circle>`})}
+ if(bars){const band=(W-L-R)/Math.max(pts.length,1),width=Math.min(50,band*.68);pts.forEach((p,i)=>{const xx=L+(i+.5)*band-width/2,yy=y(p.value),hh=Math.max(1,y(ymin)-yy);markup+=`<rect x="${xx.toFixed(1)}" y="${yy.toFixed(1)}" width="${width.toFixed(1)}" height="${hh.toFixed(1)}" rx="5" fill="${color}"><title>${esc(displayDate(p.date))}: ${esc(pretty(p.value,1))} ${esc(unit)}</title></rect>`})}
+ else{const line=pts.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)} ${y(p.value).toFixed(1)}`).join(' ');markup+=`<path d="${line}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>`;pts.forEach((p,i)=>{markup+=`<circle cx="${x(i).toFixed(1)}" cy="${y(p.value).toFixed(1)}" r="${pts.length>25?3:5}" fill="${color}" stroke="#10221e" stroke-width="2"><title>${esc(displayDate(p.date))}: ${esc(pretty(p.value,1))} ${esc(unit)}</title></circle>`})}
  const first=pts[0].date,last=pts[pts.length-1].date;
- markup+=`<text x="${L}" y="${H-8}" fill="#a1b7ac" font-size="12">${esc(first)}</text><text x="${W-R}" y="${H-8}" fill="#a1b7ac" font-size="12" text-anchor="end">${esc(last)}</text></svg>`;
+ markup+=`<text x="${L}" y="${H-8}" fill="#a1b7ac" font-size="12">${esc(displayDate(first))}</text><text x="${W-R}" y="${H-8}" fill="#a1b7ac" font-size="12" text-anchor="end">${esc(displayDate(last))}</text></svg>`;
  return markup;
 }
 function filterSport(s,choice){if(choice==='all')return true;const name=String(s.cardio?.sport||'').toLowerCase();const source=String(s.garmin?.activityType||'').toLowerCase();
@@ -390,7 +904,104 @@ function filterSport(s,choice){if(choice==='all')return true;const name=String(s
 }
 function cardioData(){const sport=el('analysisSport').value;return db.filter(s=>s.type==='cardio'&&analysisWithin(s.date)&&filterSport(s,sport)&&(!el('analysisShortActivity').checked||(numericValue(s.duration)!==null&&numericValue(s.duration)>=10))).sort((a,b)=>a.date.localeCompare(b.date))}
 function renderStrengthOnly(){renderAnalytics()}
+
+// Phase 3.2 – deskriptives Monitoring, ohne unbegründete Überlastungsampel.
+function loadISOWeekMonday(d){
+ const t=new Date(d+'T12:00:00');if(!Number.isFinite(t.getTime()))return null;
+ const weekday=(t.getDay()+6)%7;t.setDate(t.getDate()-weekday);
+ return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+}
+function loadShiftMonday(d,delta){const t=new Date(d+'T12:00:00');t.setDate(t.getDate()+7*delta);return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`}
+function loadSetValid(st){
+ if(st?.done!==true)return false;
+ const reps=numericValue(st.reps),kg=numericValue(st.kg);
+ return reps!==null&&Number.isInteger(reps)&&reps>=1&&reps<=100&&(kg===null||(kg>=0&&kg<=1000));
+}
+function loadWeeklyData(sessions,referenceDate){
+ const current=loadISOWeekMonday(referenceDate);
+ const weeks=Array.from({length:8},(_,i)=>({date:loadShiftMonday(current,i-7),kraft:0,cardio:0,other:0,minutes:0,durationsMissing:0,sets:0,setIncomplete:0,srpeLoad:0,srpeCount:0,srpeMissing:0,total:0}));
+ const index=new Map(weeks.map(w=>[w.date,w]));
+ for(const session of sessions){
+  const date=String(session?.date||'');if(!/^\d{4}-\d{2}-\d{2}$/.test(date))continue;
+  const w=index.get(loadISOWeekMonday(date));if(!w)continue;
+  w.total++;
+  if(session.type==='kraft')w.kraft++;else if(session.type==='cardio')w.cardio++;else w.other++;
+  const mins=numericValue(session.duration);
+  const validDuration=mins!==null&&mins>0&&mins<=1440;
+  if(validDuration)w.minutes+=mins;else w.durationsMissing++;
+  const rpe=numericValue(session.srpe);
+  if(validDuration&&rpe!==null&&rpe>=1&&rpe<=10){w.srpeLoad+=mins*rpe;w.srpeCount++}else w.srpeMissing++;
+  if(session.type==='kraft')for(const ex of (session.exercises||[]))for(const st of (ex.sets||[])){
+    if(loadSetValid(st))w.sets++;else w.setIncomplete++;
+  }
+ }
+ return weeks;
+}
+function renderLoadMonitoring(){
+ const kpis=el('loadKpis'),tbody=el('loadWeeks'),interpret=el('loadInterpretation');
+ if(!kpis||!tbody||!interpret)return;
+ const weeks=loadWeeklyData(db,today());
+ const current=weeks[7],previous=weeks[6],all=weeks.reduce((a,w)=>({sessions:a.sessions+w.total,missingDuration:a.missingDuration+w.durationsMissing,missingRpe:a.missingRpe+w.srpeMissing,completeRpe:a.completeRpe+w.srpeCount,unconfirmed:a.unconfirmed+w.setIncomplete}),{sessions:0,missingDuration:0,missingRpe:0,completeRpe:0,unconfirmed:0});
+ const card=(name,value,note)=>`<div class="load-kpi"><span>${esc(name)}</span><b>${esc(value)}</b><span>${esc(note)}</span></div>`;
+ kpis.innerHTML=card('Diese Woche',`${current.total} Einheiten`,`${current.kraft} Kraft · ${current.cardio} Cardio`)+card('Trainingszeit',`${pretty(current.minutes,0)} Min.`,current.durationsMissing?`${current.durationsMissing} Dauerangabe(n) fehlen`:'nur dokumentierte Dauer')+card('Abgeschlossene Kraftsätze',`${current.sets}`,current.setIncomplete?`${current.setIncomplete} offene/ungültige Sätze`:'nur bestätigte Sätze');
+ tbody.innerHTML=weeks.map(w=>`<tr><td>${esc(displayDate(w.date))}${w===current?' · aktuell':''}</td><td>${w.kraft}</td><td>${w.cardio}</td><td>${pretty(w.minutes,0)}${w.durationsMissing?' *':''}</td><td>${w.sets}</td><td>${w.srpeCount?pretty(w.srpeLoad,0):'–'}${w.srpeMissing?' *':''}</td></tr>`).join('');
+ const notes=[];
+ if(!all.sessions)notes.push('In den letzten acht Wochen sind keine Trainingseinheiten dokumentiert.');
+ else{
+  notes.push(`In den letzten acht Wochen sind ${all.sessions} Einheiten erfasst.`);
+  if(all.missingDuration)notes.push(`Bei ${all.missingDuration} Einheiten fehlt eine gültige Dauer.`);
+  if(all.missingRpe)notes.push(`Für ${all.missingRpe} Einheiten lässt sich keine vollständige Session-RPE-Last berechnen (RPE oder Dauer fehlt).`);
+  if(all.unconfirmed)notes.push(`${all.unconfirmed} Kraftsätze sind offen oder nicht plausibel ausgefüllt und zählen nicht als abgeschlossene Arbeitssätze.`);
+  if(current.total&&previous.total)notes.push(`Vorwoche: ${previous.total} Einheiten mit ${pretty(previous.minutes,0)} erfassten Minuten. Änderungen sind beschreibend und keine automatische Überlastungswarnung.`);
+ }
+ notes.push('Ein Stern (*) kennzeichnet unvollständige Wochenangaben. Keine automatische Aussage über Regeneration oder Deload-Bedarf.');
+ interpret.textContent=notes.join(' ');
+}
+
+
+/* Phase 3.3: explicit, advisory deload schedule; uses IndexedDB independent of session imports. */
+function deloadMonday(iso){
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(String(iso||'')))return null;
+ const d=new Date(iso+'T12:00:00');if(Number.isNaN(d.getTime()))return null;
+ d.setDate(d.getDate()-((d.getDay()+6)%7));
+ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function deloadShift(iso,weeks){const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+7*weeks);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function deloadSunday(start){const d=new Date(start+'T12:00:00');d.setDate(d.getDate()+6);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function deloadDiffWeeks(start,now){return Math.round((new Date(now+'T12:00:00')-new Date(start+'T12:00:00'))/604800000)}
+function collectDeloadForm(){
+ const start=deloadMonday(el('deloadStart').value),cycle=Number(el('deloadCycle').value),reduction=Number(el('deloadReduction').value);
+ return {enabled:el('deloadEnabled').checked,start,cycle:[4,5,6,7,8].includes(cycle)?cycle:5,reduction:[30,40,50,60].includes(reduction)?reduction:50};
+}
+async function saveDeloadPlan(){
+ const next=collectDeloadForm();
+ if(next.enabled&&!next.start){el('deloadEnabled').checked=false;el('deloadSaveStatus').textContent='Bitte zuerst den Beginn deines Trainingsblocks auswählen.';renderDeloadPlan();return;}
+ try{await StorageV2.put('deloadPlan',next);deloadPlan=next;el('deloadSaveStatus').textContent='Einstellung lokal gespeichert. Die Trainingsdaten bleiben unverändert.';renderDeloadPlan()}
+ catch(err){el('deloadSaveStatus').textContent='Speichern fehlgeschlagen: '+err.message;el('deloadEnabled').checked=deloadPlan.enabled;}
+}
+function renderDeloadPlan(){
+ const target=el('deloadOverview'),weeksNode=el('deloadWeeks');if(!target||!weeksNode)return;
+ const p=deloadPlan;el('deloadEnabled').checked=!!p.enabled;
+ if(document.activeElement!==el('deloadStart'))el('deloadStart').value=p.start||'';
+ if(document.activeElement!==el('deloadCycle'))el('deloadCycle').value=String(p.cycle||5);
+ if(document.activeElement!==el('deloadReduction'))el('deloadReduction').value=String(p.reduction||50);
+ if(!p.enabled||!p.start){target.innerHTML='<strong>Planung noch nicht aktiviert.</strong><div class="hint">Startdatum wählen und „Aktiv“ einschalten. Keine Deload-Termine werden automatisch festgelegt.</div>';weeksNode.innerHTML='';return;}
+ const monday=deloadMonday(today()),delta=deloadDiffWeeks(p.start,monday),weekNumber=delta>=0?delta%p.cycle:-1;
+ const cycleStart=delta>=0?deloadShift(p.start,Math.floor(delta/p.cycle)*p.cycle):p.start;
+ const deloadStart=deloadShift(cycleStart,p.cycle-1),deloadEnd=deloadShift(deloadStart,1),nextCycle=deloadShift(cycleStart,p.cycle);
+ const state=delta<0?'Block beginnt in der Zukunft':weekNumber===p.cycle-1?'Geplante Entlastungswoche':'Geplante Belastungswoche '+(weekNumber+1)+' von '+(p.cycle-1);
+ target.innerHTML='<strong>'+esc(state)+'</strong><div>Entlastung vorgesehen: <b>'+esc(displayDate(deloadStart))+' – '+esc(displayDate(deloadSunday(deloadStart)))+'</b></div><div>Reduktion der Arbeitssätze: <b>'+p.reduction+' %</b> gegenüber einer üblichen Vergleichswoche (nur Planung).</div><div class="hint">Nächster Block ab '+esc(displayDate(nextCycle))+' · keine automatischen Planänderungen</div>';
+ const parts=[];
+ for(let i=0;i<p.cycle;i++){
+  const beginning=deloadShift(cycleStart,i);const isDeload=i===p.cycle-1;
+  parts.push('<div class="deload-week'+(isDeload?' is-deload':'')+(beginning===monday?' current':'')+'"><b>'+(isDeload?'Deload':'W'+(i+1))+'</b><br>'+esc(displayDate(beginning))+'</div>');
+ }
+ weeksNode.style.gridTemplateColumns='repeat('+p.cycle+',minmax(0,1fr))';weeksNode.innerHTML=parts.join('');
+}
+
 function renderAnalytics(){
+ renderLoadMonitoring();
+ renderDeloadPlan();
  const strength=exerciseData(),exerciseBox=el('analysisExercise'),selected=exerciseBox.value;
  const names=[...new Set(strength.map(x=>x.name))].sort((a,b)=>a.localeCompare(b,'de'));
  exerciseBox.innerHTML='<option value="">Übung auswählen</option>'+names.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');exerciseBox.value=names.includes(selected)?selected:(names[0]||'');
@@ -401,7 +1012,7 @@ function renderAnalytics(){
  if(!exname)el('strengthSummary').textContent='Noch keine Übungen mit eingetragenen Gewichten und numerischen Wiederholungen gefunden.';
  else if(serie.length===1)el('strengthSummary').textContent='Eine Messung vorhanden. Ein Trend entsteht erst mit weiteren Einheiten derselben Übung und desselben Geräts.';
  else if(serie.length>1){const delta=serie.at(-1).value-serie[0].value;el('strengthSummary').textContent=`${serie.length} Messtage · erster Wert ${pretty(serie[0].value,1)} kg, zuletzt ${pretty(serie.at(-1).value,1)} kg · Änderung ${delta>=0?'+':''}${pretty(delta,1)} kg. ${measure==='e1rm'?'Schätzung, kein getestetes 1RM.':'Nur bei gleicher Übung/Ausführung direkt vergleichbar.'}`}
- else el('strengthSummary').textContent=measure==='e1rm'?'Für e1RM werden mindestens ein gültiger Satz mit 1–10 Wiederholungen und positiver Last benötigt.':'Keine gültigen Werte für diese Auswahl.';
+ else el('strengthSummary').textContent=measure==='e1rm'?'Für e1RM werden mindestens ein bestätigter gültiger Satz mit 1–10 Wiederholungen und positiver Last benötigt.':'Keine gültigen Werte für diese Auswahl.';
  const weeks=rollup(strength.map(x=>({date:monday(x.date),value:x.volume})),'date');
  el('volumePlot').innerHTML=svgPlot(weeks,'kg × Wdh.',{bars:true,zero:true,color:'#87c2a2'});
  el('volumeSummary').textContent=weeks.length?`${pretty(weeks.reduce((s,v)=>s+v.value,0),0)} dokumentierte kg × Wdh. im gewählten Zeitraum. Wechselnde Übungen, Maschinen und KH-Angaben je Hand begrenzen die Vergleichbarkeit.`:'Wochenvolumen erscheint, sobald Kraftsätze mit Last und Wiederholungszahl erfasst sind.';
@@ -415,19 +1026,32 @@ function renderAnalytics(){
  const markerMetric=el('analysisHealthMetric').value,markers=healthMarkers.filter(x=>analysisWithin(x.date)&&numericValue(x[markerMetric])!==null).sort((a,b)=>a.date.localeCompare(b.date)).map(x=>({date:x.date,value:numericValue(x[markerMetric])}));
  const units={weight:'kg',rhr:'bpm',hrv:'ms',vo2:'ml/kg/min'};
  el('healthPlot').innerHTML=svgPlot(markers,units[markerMetric]||'',{color:'#c7e5b1'});
- const last=markers.at(-1);el('healthSummary').textContent=last?`Letzte Messung ${pretty(last.value,1)} ${units[markerMetric]} am ${last.date}. ${markers.length>1?'Änderung seit erster Messung: '+(last.value-markers[0].value>=0?'+':'')+pretty(last.value-markers[0].value,1)+' '+units[markerMetric]+'.':''}`:'Noch keine Messwerte für diese Kennzahl.';
- el('healthLog').innerHTML=healthMarkers.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,7).map(m=>`<div class="marker-row"><div><b>${esc(m.date)}</b><div class="hint">${[['weight','kg'],['rhr','bpm Ruhepuls'],['hrv','ms HRV'],['vo2','ml/kg/min VO₂max']].filter(([k])=>numericValue(m[k])!==null).map(([k,u])=>esc(pretty(m[k],1))+' '+esc(u)).join(' · ')}</div></div><button class="danger" onclick="removeMarker('${m.date}')" aria-label="Messung vom ${esc(m.date)} löschen">×</button></div>`).join('')||'<p class="hint">Hier erscheinen deine gespeicherten Körper- und Garmin-Marker.</p>';
+ const last=markers.at(-1);el('healthSummary').textContent=last?`Letzte Messung ${pretty(last.value,1)} ${units[markerMetric]} am ${displayDate(last.date)}. ${markers.length>1?'Änderung seit erster Messung: '+(last.value-markers[0].value>=0?'+':'')+pretty(last.value-markers[0].value,1)+' '+units[markerMetric]+'.':''}`:'Noch keine Messwerte für diese Kennzahl.';
+ el('healthLog').innerHTML=healthMarkers.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,7).map(m=>`<div class="marker-row"><div><b>${esc(displayDate(m.date))}</b><div class="hint">${[['weight','kg'],['rhr','bpm Ruhepuls'],['hrv','ms HRV'],['vo2','ml/kg/min VO₂max']].filter(([k])=>numericValue(m[k])!==null).map(([k,u])=>esc(pretty(m[k],1))+' '+esc(u)).join(' · ')}</div></div><button class="danger" onclick="removeMarker('${m.date}')" aria-label="Messung vom ${esc(displayDate(m.date))} löschen">×</button></div>`).join('')||'<p class="hint">Hier erscheinen deine gespeicherten Körper- und Garmin-Marker.</p>';
 }
-function saveMarker(){const date=el('markerDate').value;if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert('Bitte gültiges Datum wählen.');return}
+async function saveMarker(){const date=el('markerDate').value;if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){alert('Bitte gültiges Datum wählen.');return}
  const lim={weight:[30,350],rhr:[25,180],hrv:[1,300],vo2:[10,100]};const inputs={};for(const [k,[a,b]] of Object.entries(lim)){const val=el('marker-'+k).value.trim();if(val==='')continue;const num=numericValue(val);if(num===null||num<a||num>b){alert('Bitte '+k+' mit plausibler Zahl eintragen ('+a+'–'+b+').');return}inputs[k]=num}
  if(!Object.keys(inputs).length){alert('Bitte mindestens einen Messwert eingeben.');return}
- const old=healthMarkers.find(x=>x.date===date);const next={...(old||{date}),...inputs};healthMarkers=healthMarkers.filter(x=>x.date!==date);healthMarkers.push(next);if(!saveMarkers())return;
+ const old=healthMarkers.find(x=>x.date===date);const next={...(old||{date}),...inputs};healthMarkers=healthMarkers.filter(x=>x.date!==date);healthMarkers.push(next);if(!await saveMarkers())return;
  for(const k of Object.keys(lim))el('marker-'+k).value='';el('analysisHealthMetric').value=Object.keys(inputs)[0];renderAnalytics();notify('Messwerte gespeichert')
 }
-function removeMarker(date){if(!confirm('Messung vom '+date+' löschen?'))return;healthMarkers=healthMarkers.filter(x=>x.date!==date);saveMarkers();renderAnalytics()}
+async function removeMarker(date){if(!confirm('Messung vom '+displayDate(date)+' löschen?'))return;healthMarkers=healthMarkers.filter(x=>x.date!==date);await saveMarkers();renderAnalytics()}
 
-resetForm(true);
-el('train').addEventListener('input',()=>queueDraft());
-el('train').addEventListener('change',()=>queueDraft());
-restoreDraft();restoreRest();el('markerDate').value=today();renderHome();if('serviceWorker'in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+async function boot(){
+ try{
+  await StorageV2.migrateLegacy();
+  db=await StorageV2.get('sessions')||[];
+  healthMarkers=await StorageV2.get('markers')||[];
+  await StorageV2.dailySnapshot(db,healthMarkers);
+  readinessEntries=(await StorageV2.get('readiness')||[]).filter(x=>/^\d{4}-\d\d-\d\d$/.test(x?.date||''));
+  const storedDeload=await StorageV2.get('deloadPlan');if(storedDeload&&typeof storedDeload==='object')deloadPlan={...deloadPlan,...storedDeload};
+  resetForm(true);
+  el('train').addEventListener('input',()=>queueDraft());
+  el('train').addEventListener('change',()=>queueDraft());
+  await restoreDraft();discardRecovery=await StorageV2.get('discardRecovery')||null;el('restoreDiscarded').style.display=discardRecovery?'block':'none';await restoreRest();
+  el('markerDate').value=today();renderHome();renderReadiness();
+  if('serviceWorker'in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+ }catch(e){document.querySelector('main').innerHTML='<div class="card"><h2>Speicherinitialisierung fehlgeschlagen</h2><p>Aus Sicherheitsgründen wurde nichts überschrieben.</p><pre id="bootError"></pre></div>';document.getElementById('bootError').textContent=e.message;console.error(e)}
+}
+boot();
 </script></body></html>
