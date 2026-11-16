@@ -1,5 +1,5 @@
-const CACHE='athletik360-v4-trainingsmodus';
-const ASSETS=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE='athletik360-v10-gesamtcheck-v1';
+const ASSETS=['./','./index.html','./storage-v2.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install', event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(Promise.all([caches.keys().then(keys=>Promise.all(keys.filter(key=>key.startsWith('athletik360-')&&key!==CACHE).map(key=>caches.delete(key)))),self.clients.claim()]))});
 self.addEventListener('fetch',event=>{
